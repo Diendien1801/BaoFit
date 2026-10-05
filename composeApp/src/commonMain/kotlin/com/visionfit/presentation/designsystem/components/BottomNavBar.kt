@@ -1,0 +1,144 @@
+package com.visionfit.presentation.designsystem.components
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.visionfit.presentation.designsystem.icons.IconSpec
+import com.visionfit.presentation.designsystem.icons.VfIcon
+import com.visionfit.presentation.designsystem.icons.VfIcons
+import com.visionfit.presentation.designsystem.theme.VfDimens
+import com.visionfit.presentation.designsystem.theme.VisionFitTheme
+
+enum class MainTab(val label: String, val icon: IconSpec) {
+    TODAY("Hôm nay", VfIcons.Home),
+    HISTORY("Lịch sử", VfIcons.Clock),
+    GOAL("Mục tiêu", VfIcons.Target),
+    PROFILE("Hồ sơ", VfIcons.User),
+}
+
+/**
+ * Floating navigation card with the raised camera button in the middle. Place it at the
+ * bottom of a Box; it adds the navigation-bar inset itself.
+ */
+@Composable
+fun VfBottomNavBar(
+    selected: MainTab,
+    onTabSelected: (MainTab) -> Unit,
+    onCaptureClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(WindowInsets.navigationBars)
+            .padding(start = 16.dp, end = 16.dp, bottom = 18.dp),
+    ) {
+        BrutalSurface(
+            modifier = Modifier.fillMaxWidth().height(70.dp),
+            shape = RoundedCornerShape(26.dp),
+            shadowOffset = VfDimens.ShadowM,
+            contentAlignment = Alignment.Center,
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                NavItem(MainTab.TODAY, selected, onTabSelected, Modifier.weight(1f))
+                NavItem(MainTab.HISTORY, selected, onTabSelected, Modifier.weight(1f))
+                Spacer(Modifier.weight(1f))
+                NavItem(MainTab.GOAL, selected, onTabSelected, Modifier.weight(1f))
+                NavItem(MainTab.PROFILE, selected, onTabSelected, Modifier.weight(1f))
+            }
+        }
+        CaptureButton(
+            onClick = onCaptureClick,
+            modifier = Modifier.align(Alignment.TopCenter).offset(y = (-14).dp),
+        )
+    }
+}
+
+@Composable
+private fun NavItem(tab: MainTab, selected: MainTab, onTabSelected: (MainTab) -> Unit, modifier: Modifier) {
+    val isSelected = tab == selected
+    val color = if (isSelected) VisionFitTheme.colors.primary else VisionFitTheme.colors.textSecondary
+    Column(
+        modifier = modifier
+            .height(54.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .semantics { this.selected = isSelected }
+            .clickable(role = Role.Tab, onClick = { onTabSelected(tab) }),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),
+    ) {
+        VfIcon(
+            icon = tab.icon,
+            contentDescription = null,
+            size = 22.dp,
+            tint = color,
+            fill = if (isSelected) VisionFitTheme.colors.primaryContainer else Color.Transparent,
+            strokeWidth = if (isSelected) 2.2f else 2f,
+        )
+        Text(
+            text = tab.label,
+            style = VisionFitTheme.type.chip.copy(fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold),
+            color = color,
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
+private fun CaptureButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Box(modifier = modifier.size(66.dp), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier
+                .size(66.dp)
+                .pinging()
+                .clip(CircleShape)
+                .background(VisionFitTheme.colors.coral),
+        )
+        BrutalSurface(
+            modifier = Modifier.size(66.dp),
+            shape = CircleShape,
+            color = VisionFitTheme.colors.coral,
+            shadowOffset = VfDimens.ShadowM,
+            onClick = onClick,
+            onClickLabel = "Chụp ảnh bữa ăn",
+            contentAlignment = Alignment.Center,
+        ) {
+            VfIcon(
+                icon = VfIcons.Camera,
+                contentDescription = "Chụp ảnh bữa ăn",
+                size = 28.dp,
+                tint = VisionFitTheme.colors.ink,
+                fill = VisionFitTheme.colors.surface,
+                accent = VisionFitTheme.colors.yellow,
+            )
+        }
+    }
+}
