@@ -18,8 +18,6 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -76,6 +74,7 @@ private val ScanningRegions = listOf(
 /**
  * The analyzed photo with a stage-specific overlay: scanning circles and a sweeping bar while
  * recognizing, numbered rings around each dish once found, and a warning when it failed.
+ * The caller sizes it; overlays follow the crop at any size.
  */
 @Composable
 fun AnalysisPhoto(job: AnalysisJob, modifier: Modifier = Modifier) {
@@ -101,8 +100,6 @@ fun AnalysisPhoto(job: AnalysisJob, modifier: Modifier = Modifier) {
     }
     Box(
         modifier = modifier
-            .fillMaxWidth()
-            .height(300.dp)
             .graphicsLayer { translationX = shake.value * shakePx }
             .hardShadow(shape, VfDimens.ShadowXL, colors.primary)
             .clip(shape)

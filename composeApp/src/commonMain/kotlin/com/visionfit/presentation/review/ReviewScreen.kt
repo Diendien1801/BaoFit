@@ -2,10 +2,12 @@ package com.visionfit.presentation.review
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -16,8 +18,11 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -45,10 +50,16 @@ import com.visionfit.presentation.designsystem.components.VfTopBar
 import com.visionfit.presentation.designsystem.components.topBorder
 import com.visionfit.presentation.designsystem.icons.VfIcon
 import com.visionfit.presentation.designsystem.icons.VfIcons
+import com.visionfit.presentation.designsystem.layout.LocalWindowLayout
+import com.visionfit.presentation.designsystem.layout.VfContentWidth
+import com.visionfit.presentation.designsystem.layout.centeringPadding
+import com.visionfit.presentation.designsystem.layout.maxContentWidth
+import com.visionfit.presentation.designsystem.layout.safeHorizontal
 import com.visionfit.presentation.designsystem.theme.VfDimens
 import com.visionfit.presentation.designsystem.theme.VfRadius
 import com.visionfit.presentation.designsystem.theme.VisionFitTheme
 import com.visionfit.presentation.preview.PreviewFixtures
+import com.visionfit.presentation.preview.VisionFitPreview
 import com.visionfit.presentation.review.components.AddFoodButton
 import com.visionfit.presentation.review.components.EditHint
 import com.visionfit.presentation.review.components.EmptyTrayCard
@@ -108,7 +119,12 @@ fun ReviewScreen(state: ReviewUiState, onEvent: (ReviewEvent) -> Unit, modifier:
             navigation = { VfCloseButton(onClick = { onEvent(ReviewEvent.Close) }) },
             action = { RetakeButton(onClick = { onEvent(ReviewEvent.Retake) }) },
             title = {
-                Text(text = "Kiểm tra kết quả", style = VisionFitTheme.type.sectionTitleSmall, modifier = Modifier.semantics { heading() })
+                Text(
+                    text = "Kiểm tra kết quả",
+                    style = VisionFitTheme.type.sectionTitleSmall,
+                    maxLines = 2,
+                    modifier = Modifier.semantics { heading() },
+                )
             },
         )
         when {
@@ -120,40 +136,85 @@ fun ReviewScreen(state: ReviewUiState, onEvent: (ReviewEvent) -> Unit, modifier:
                 modifier = Modifier.weight(1f),
             )
             else -> {
-                ReviewList(state, onEvent, Modifier.weight(1f))
+                if (LocalWindowLayout.current.usesTwoPanes) {
+                    ReviewTwoPanes(state, onEvent, Modifier.weight(1f))
+                } else {
+                    ReviewSingleColumn(state, onEvent, Modifier.weight(1f))
+                }
                 ReviewBottomBar(state, onEvent)
             }
         }
     }
 }
 
+/** Phones and portrait tablets: summary, hints and dishes in one list, capped in width. */
 @Composable
-private fun ReviewList(state: ReviewUiState, onEvent: (ReviewEvent) -> Unit, modifier: Modifier = Modifier) {
-    LazyColumn(
-        modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(start = VfDimens.ScreenPadding, end = VfDimens.ScreenPadding, top = 16.dp, bottom = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        item(key = "summary") { ReviewSummaryCard(state) }
-        item(key = "impact") { ImpactBanner(state.remainingBeforeKcal, state.remainingAfterKcal) }
-        item(key = "hint") { EditHint() }
-        if (state.items.isEmpty()) {
-            item(key = "empty") { EmptyTrayCard() }
+private fun ReviewSingleColumn(state: ReviewUiState, onEvent: (ReviewEvent) -> Unit, modifier: Modifier) {
+    BoxWithConstraints(modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.safeHorizontal)) {
+        val side = centeringPadding(maxWidth, VfContentWidth.Column, LocalWindowLayout.current.gutter)
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = side, end = side, top = 16.dp, bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            item(key = "summary") { ReviewSummaryCard(state) }
+            item(key = "impact") { ImpactBanner(state.remainingBeforeKcal, state.remainingAfterKcal) }
+            item(key = "hint") { EditHint() }
+            foodItems(state, onEvent)
         }
-        itemsIndexed(state.items, key = { _, item -> item.id }) { index, item ->
-            FoodItemEditor(
-                item = item,
-                number = index + 1,
-                isInvalid = item.id in state.invalidItemIds,
-                onNameChange = { onEvent(ReviewEvent.NameChanged(item.id, it)) },
-                onGramsChange = { onEvent(ReviewEvent.GramsChanged(item.id, it)) },
-                onKcalChange = { onEvent(ReviewEvent.KcalChanged(item.id, it)) },
-                onRemove = { onEvent(ReviewEvent.RemoveItem(item.id)) },
-                modifier = Modifier.animateItem(),
-            )
-        }
-        item(key = "add") { AddFoodButton(onClick = { onEvent(ReviewEvent.AddItem) }, modifier = Modifier.animateItem()) }
     }
+}
+
+/** Landscape and wide windows: the photo and totals stay in view while the dishes scroll beside them. */
+@Composable
+private fun ReviewTwoPanes(state: ReviewUiState, onEvent: (ReviewEvent) -> Unit, modifier: Modifier) {
+    val gutter = LocalWindowLayout.current.gutter
+    Row(
+        modifier = modifier
+            .windowInsetsPadding(WindowInsets.safeHorizontal)
+            .maxContentWidth(VfContentWidth.TwoPane),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(
+            modifier = Modifier
+                .weight(0.9f)
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState())
+                .padding(start = gutter, end = 12.dp, top = 16.dp, bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            ReviewSummaryCard(state)
+            ImpactBanner(state.remainingBeforeKcal, state.remainingAfterKcal)
+            EditHint()
+        }
+        LazyColumn(
+            modifier = Modifier.weight(1.1f).fillMaxHeight(),
+            contentPadding = PaddingValues(start = 12.dp, end = gutter, top = 16.dp, bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            foodItems(state, onEvent)
+        }
+    }
+}
+
+/** Editable dishes (or the empty tray) followed by "add a dish". */
+private fun LazyListScope.foodItems(state: ReviewUiState, onEvent: (ReviewEvent) -> Unit) {
+    if (state.items.isEmpty()) {
+        item(key = "empty") { EmptyTrayCard() }
+    }
+    itemsIndexed(state.items, key = { _, item -> item.id }) { index, item ->
+        FoodItemEditor(
+            item = item,
+            number = index + 1,
+            isInvalid = item.id in state.invalidItemIds,
+            onNameChange = { onEvent(ReviewEvent.NameChanged(item.id, it)) },
+            onGramsChange = { onEvent(ReviewEvent.GramsChanged(item.id, it)) },
+            onKcalChange = { onEvent(ReviewEvent.KcalChanged(item.id, it)) },
+            onRemove = { onEvent(ReviewEvent.RemoveItem(item.id)) },
+            modifier = Modifier.animateItem(),
+        )
+    }
+    item(key = "add") { AddFoodButton(onClick = { onEvent(ReviewEvent.AddItem) }, modifier = Modifier.animateItem()) }
 }
 
 @Composable
@@ -182,36 +243,49 @@ private fun RetakeButton(onClick: () -> Unit) {
 @Composable
 private fun ReviewBottomBar(state: ReviewUiState, onEvent: (ReviewEvent) -> Unit) {
     val colors = VisionFitTheme.colors
-    Row(
+    val layout = LocalWindowLayout.current
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(colors.surface)
             .topBorder(VfDimens.Border, colors.ink)
             .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
-            .padding(start = VfDimens.ScreenPadding, end = VfDimens.ScreenPadding, top = 12.dp, bottom = 22.dp),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .windowInsetsPadding(WindowInsets.safeHorizontal),
     ) {
-        Column {
-            Text(text = "Tổng bữa ăn", style = VisionFitTheme.type.caption, color = colors.textSecondary)
-            Text(
-                text = buildAnnotatedString {
-                    append(VnFormat.thousands(state.totalKcal))
-                    withStyle(SpanStyle(fontSize = 14.sp)) { append(" kcal") }
-                },
-                style = VisionFitTheme.type.titleXL,
-                maxLines = 1,
+        Row(
+            modifier = Modifier
+                .maxContentWidth(VfContentWidth.Column)
+                .padding(
+                    start = layout.gutter,
+                    end = layout.gutter,
+                    top = if (layout.isShort) 8.dp else 12.dp,
+                    bottom = if (layout.isShort) 10.dp else 22.dp,
+                ),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column {
+                Text(text = "Tổng bữa ăn", style = VisionFitTheme.type.caption, color = colors.textSecondary)
+                Text(
+                    text = buildAnnotatedString {
+                        append(VnFormat.thousands(state.totalKcal))
+                        withStyle(SpanStyle(fontSize = 14.sp)) { append(" kcal") }
+                    },
+                    style = VisionFitTheme.type.titleXL,
+                    maxLines = 1,
+                )
+            }
+            VfPrimaryButton(
+                text = "Xác nhận & lưu",
+                onClick = { onEvent(ReviewEvent.Save) },
+                // The check icon is the first thing to go when a small phone runs out of room.
+                leadingIcon = if (layout.isNarrow) null else VfIcons.Check,
+                trailingIcon = null,
+                enabled = state.canSave,
+                loading = state.isSaving,
+                modifier = Modifier.weight(1f),
             )
         }
-        VfPrimaryButton(
-            text = "Xác nhận & lưu",
-            onClick = { onEvent(ReviewEvent.Save) },
-            leadingIcon = VfIcons.Check,
-            trailingIcon = null,
-            enabled = state.canSave,
-            loading = state.isSaving,
-            modifier = Modifier.weight(1f),
-        )
     }
 }
 
@@ -224,11 +298,17 @@ private fun ReviewIssue.message(itemNumber: Int?): String = when (this) {
 @Preview(widthDp = 390, heightDp = 1310)
 @Composable
 private fun ReviewPreview() {
-    VisionFitTheme { ReviewScreen(state = PreviewFixtures.review(), onEvent = {}) }
+    VisionFitPreview { ReviewScreen(state = PreviewFixtures.review(), onEvent = {}) }
 }
 
 @Preview(widthDp = 390, heightDp = 844)
 @Composable
 private fun ReviewManualEmptyPreview() {
-    VisionFitTheme { ReviewScreen(state = PreviewFixtures.review(manual = true), onEvent = {}) }
+    VisionFitPreview { ReviewScreen(state = PreviewFixtures.review(manual = true), onEvent = {}) }
+}
+
+@Preview(widthDp = 1280, heightDp = 800)
+@Composable
+private fun ReviewDesktopPreview() {
+    VisionFitPreview { ReviewScreen(state = PreviewFixtures.review(), onEvent = {}) }
 }

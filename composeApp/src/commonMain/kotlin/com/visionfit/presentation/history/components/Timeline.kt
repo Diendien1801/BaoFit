@@ -47,6 +47,7 @@ import com.visionfit.presentation.designsystem.components.dashedBorder
 import com.visionfit.presentation.designsystem.components.popIn
 import com.visionfit.presentation.designsystem.components.spinning
 import com.visionfit.presentation.designsystem.icons.VfIcon
+import com.visionfit.presentation.designsystem.layout.proportionalHeight
 import com.visionfit.presentation.designsystem.icons.VfIcons
 import com.visionfit.presentation.designsystem.theme.VfDimens
 import com.visionfit.presentation.designsystem.theme.VfRadius
@@ -158,8 +159,7 @@ private fun PolaroidCard(
             Column(Modifier.padding(8.dp)) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp)
+                        .proportionalHeight(ratio = 2.2f, minHeight = 120.dp, maxHeight = 220.dp)
                         .clip(RoundedCornerShape(15.dp)),
                 ) {
                     MealPhotoImage(

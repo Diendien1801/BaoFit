@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
@@ -19,6 +20,8 @@ import com.visionfit.di.LocalAppContainer
 import com.visionfit.presentation.common.AppMessenger
 import com.visionfit.presentation.common.LocalAppMessenger
 import com.visionfit.presentation.designsystem.components.VfSnackbarHost
+import com.visionfit.presentation.designsystem.layout.ProvideWindowLayout
+import com.visionfit.presentation.designsystem.layout.VfContentWidth
 import com.visionfit.presentation.designsystem.theme.VisionFitTheme
 import com.visionfit.presentation.navigation.VisionFitNavHost
 
@@ -33,16 +36,20 @@ fun VisionFitApp(container: AppContainer = AppGraph.container) {
             LocalAppContainer provides container,
             LocalAppMessenger provides messenger,
         ) {
-            Box(Modifier.fillMaxSize()) {
-                VisionFitNavHost()
-                VfSnackbarHost(
-                    hostState = snackbarHostState,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .windowInsetsPadding(WindowInsets.safeDrawing)
-                        // Clears the floating bottom bar and fixed footers.
-                        .padding(bottom = 96.dp),
-                )
+            // Every screen picks its layout (bottom bar or rail, one or two panes) from this.
+            ProvideWindowLayout {
+                Box(Modifier.fillMaxSize()) {
+                    VisionFitNavHost()
+                    VfSnackbarHost(
+                        hostState = snackbarHostState,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .windowInsetsPadding(WindowInsets.safeDrawing)
+                            // Clears the floating bottom bar and fixed footers.
+                            .padding(bottom = 96.dp)
+                            .widthIn(max = VfContentWidth.Form),
+                    )
+                }
             }
         }
     }

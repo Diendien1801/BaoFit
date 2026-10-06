@@ -7,9 +7,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -20,12 +22,15 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.visionfit.presentation.designsystem.icons.VfIcons
+import com.visionfit.presentation.designsystem.layout.LocalWindowLayout
+import com.visionfit.presentation.designsystem.layout.safeHorizontal
 import com.visionfit.presentation.designsystem.theme.VfDimens
 import com.visionfit.presentation.designsystem.theme.VisionFitTheme
 
 /**
  * Three-slot header used by the flow screens: a 46dp action on each side and a centered
- * title. Empty slots keep their width so the title stays centered.
+ * title. Empty slots keep their width so the title stays centered. Side padding follows the
+ * window gutter and clears a landscape display cutout.
  */
 @Composable
 fun VfTopBar(
@@ -34,10 +39,12 @@ fun VfTopBar(
     action: @Composable () -> Unit = { Spacer(Modifier.size(VfDimens.TopBarButton)) },
     title: @Composable () -> Unit,
 ) {
+    val gutter = LocalWindowLayout.current.gutter
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = VfDimens.ScreenPadding, end = VfDimens.ScreenPadding, top = 12.dp),
+            .windowInsetsPadding(WindowInsets.safeHorizontal)
+            .padding(start = gutter, end = gutter, top = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {

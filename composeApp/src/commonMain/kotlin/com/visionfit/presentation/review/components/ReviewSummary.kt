@@ -3,6 +3,7 @@ package com.visionfit.presentation.review.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,6 +24,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.visionfit.core.format.VnFormat
 import com.visionfit.presentation.common.label
@@ -36,6 +38,7 @@ import com.visionfit.presentation.designsystem.components.popIn
 import com.visionfit.presentation.designsystem.components.wiggle
 import com.visionfit.presentation.designsystem.icons.VfIcon
 import com.visionfit.presentation.designsystem.icons.VfIcons
+import com.visionfit.presentation.designsystem.layout.withFontScale
 import com.visionfit.presentation.designsystem.theme.VfDimens
 import com.visionfit.presentation.designsystem.theme.VfRadius
 import com.visionfit.presentation.designsystem.theme.VisionFitTheme
@@ -62,66 +65,76 @@ fun ReviewSummaryCard(state: ReviewUiState, modifier: Modifier = Modifier) {
                 .clip(CircleShape)
                 .background(colors.primaryBlob),
         )
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Polaroid(state)
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+        // The polaroid shrinks on the narrowest phones, so the total keeps to one line, and
+        // grows when the card has a pane of its own.
+        BoxWithConstraints(Modifier.padding(16.dp)) {
+            val isTight = maxWidth < 300.dp.withFontScale()
+            val photoSize = when {
+                isTight -> 96.dp
+                maxWidth >= 460.dp.withFontScale() -> 168.dp
+                else -> 124.dp
+            }
+            val totalStyle = if (isTight) VisionFitTheme.type.numberSummary else VisionFitTheme.type.numberL
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                AiSticker(isManual = state.isManualEntry, count = state.detectedCount)
-                state.loggedAt?.let {
-                    Text(
-                        text = "${state.mealType.label} · ${VnFormat.time(it.time)}",
-                        style = VisionFitTheme.type.caption,
-                        color = colors.onPrimaryMuted,
+                Polaroid(state, photoSize)
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    AiSticker(isManual = state.isManualEntry, count = state.detectedCount)
+                    state.loggedAt?.let {
+                        Text(
+                            text = "${state.mealType.label} · ${VnFormat.time(it.time)}",
+                            style = VisionFitTheme.type.caption,
+                            color = colors.onPrimaryMuted,
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            text = VnFormat.thousands(state.totalKcal),
+                            style = totalStyle,
+                            color = colors.surface,
+                            modifier = Modifier.alignByBaseline(),
+                        )
+                        Text(
+                            text = "kcal",
+                            style = VisionFitTheme.type.labelXL.copy(fontWeight = FontWeight.Bold),
+                            color = colors.surface,
+                            modifier = Modifier.alignByBaseline().padding(start = 4.dp),
+                        )
+                    }
+                    MacroPills(
+                        protein = "${VnFormat.oneDecimal(totals.proteinG)}g",
+                        carbs = "${VnFormat.oneDecimal(totals.carbsG)}g",
+                        fat = "${VnFormat.oneDecimal(totals.fatG)}g",
+                        bordered = true,
                     )
                 }
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(
-                        text = VnFormat.thousands(state.totalKcal),
-                        style = VisionFitTheme.type.numberL,
-                        color = colors.surface,
-                        modifier = Modifier.alignByBaseline(),
-                    )
-                    Text(
-                        text = "kcal",
-                        style = VisionFitTheme.type.labelXL.copy(fontWeight = FontWeight.Bold),
-                        color = colors.surface,
-                        modifier = Modifier.alignByBaseline().padding(start = 4.dp),
-                    )
-                }
-                MacroPills(
-                    protein = "${VnFormat.oneDecimal(totals.proteinG)}g",
-                    carbs = "${VnFormat.oneDecimal(totals.carbsG)}g",
-                    fat = "${VnFormat.oneDecimal(totals.fatG)}g",
-                    bordered = true,
-                )
             }
         }
     }
 }
 
 @Composable
-private fun Polaroid(state: ReviewUiState) {
+private fun Polaroid(state: ReviewUiState, photoSize: Dp) {
     val colors = VisionFitTheme.colors
     val regions = state.items.mapNotNull { item -> item.region?.let { item to it } }
     BrutalSurface(
         modifier = Modifier
             .wiggle(fromDegrees = -5f, toDegrees = -2f, periodMillis = 5_000)
-            .width(140.dp),
+            .width(photoSize + 16.dp),
         shape = RoundedCornerShape(VfRadius.XL),
         shadowOffset = VfDimens.ShadowS,
     ) {
         Box(
             modifier = Modifier
                 .padding(start = 6.dp, end = 6.dp, top = 6.dp, bottom = 18.dp)
-                .size(124.dp)
+                .size(photoSize)
                 .clip(RoundedCornerShape(VfRadius.S))
                 .background(colors.inkSoft),
         ) {
@@ -129,14 +142,14 @@ private fun Polaroid(state: ReviewUiState) {
                 photo = state.photo,
                 contentDescription = "Ảnh bữa ăn đã phân tích",
                 focus = ThumbnailFocus,
-                modifier = Modifier.size(124.dp),
+                modifier = Modifier.size(photoSize),
             )
             PhotoMarkersLayer(
                 photo = state.photo,
                 regions = regions.map { it.second },
                 focus = ThumbnailFocus,
                 markerSize = 20.dp,
-                modifier = Modifier.size(124.dp),
+                modifier = Modifier.size(photoSize),
             ) { index ->
                 val item = regions[index].first
                 DishNumberBadge(

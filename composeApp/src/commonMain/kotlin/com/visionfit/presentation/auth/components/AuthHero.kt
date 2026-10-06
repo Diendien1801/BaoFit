@@ -40,6 +40,7 @@ import com.visionfit.presentation.designsystem.components.spinning
 import com.visionfit.presentation.designsystem.components.wiggle
 import com.visionfit.presentation.designsystem.icons.VfIcon
 import com.visionfit.presentation.designsystem.icons.VfIcons
+import com.visionfit.presentation.designsystem.layout.ScaleDownToFit
 import com.visionfit.presentation.designsystem.theme.VfDimens
 import com.visionfit.presentation.designsystem.theme.VisionFitTheme
 import com.visionfit.resources.Res
@@ -49,19 +50,38 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
-/** Brand row, the floating "recognized dishes" collage and the headline. */
+/**
+ * Brand row, the floating "recognized dishes" collage and the headline.
+ *
+ * With [shrinkToFit] the hero accepts whatever height its parent gives it: the collage scales
+ * down into the space left between brand and headline, and is left out once it would drop
+ * below [MinCollageScale]. Brand and headline always stay.
+ */
 @Composable
-fun AuthHero(modifier: Modifier = Modifier) {
-    Column(modifier = modifier.padding(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 14.dp)) {
+fun AuthHero(modifier: Modifier = Modifier, shrinkToFit: Boolean = false) {
+    Column(
+        modifier = modifier.padding(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 14.dp),
+        // Only matters once the collage is left out: brand and headline then share the spare
+        // room evenly instead of leaving a hole where the collage was.
+        verticalArrangement = if (shrinkToFit) Arrangement.SpaceEvenly else Arrangement.Top,
+    ) {
         BrandRow()
         HeroCollage(
             modifier = Modifier
+                .then(if (shrinkToFit) Modifier.weight(1f, fill = false) else Modifier)
                 .padding(top = 8.dp)
                 .align(Alignment.CenterHorizontally),
+            minScale = if (shrinkToFit) MinCollageScale else 0f,
         )
         HeroHeadline(Modifier.padding(top = 4.dp))
     }
 }
+
+/**
+ * Below this the collage is too small to be worth its space. Down to here it still reads as
+ * "a tray with dish stickers", which matters more than the sticker text itself.
+ */
+private const val MinCollageScale = 0.4f
 
 @Composable
 private fun BrandRow() {
@@ -92,11 +112,14 @@ private fun BrandRow() {
     }
 }
 
-/** Fixed 342 × 196 composition, centered on wider screens, positioned like the design. */
+/**
+ * 342 × 196 composition positioned like the design. It never reflows: on phones narrower than
+ * the design it scales down as a whole, so the stickers keep their places around the photo.
+ */
 @Composable
-private fun HeroCollage(modifier: Modifier = Modifier) {
+private fun HeroCollage(modifier: Modifier = Modifier, minScale: Float = 0f) {
     val colors = VisionFitTheme.colors
-    Box(modifier = modifier.size(width = 342.dp, height = 196.dp)) {
+    ScaleDownToFit(designWidth = 342.dp, designHeight = 196.dp, modifier = modifier, minScale = minScale) {
         BrutalSurface(
             modifier = Modifier
                 .offset(x = 92.dp, y = 14.dp)

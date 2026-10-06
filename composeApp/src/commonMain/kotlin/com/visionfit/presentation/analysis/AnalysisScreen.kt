@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -46,9 +47,14 @@ import com.visionfit.presentation.designsystem.components.VfSecondaryLink
 import com.visionfit.presentation.designsystem.components.VfTopBar
 import com.visionfit.presentation.designsystem.components.popIn
 import com.visionfit.presentation.designsystem.icons.VfIcons
+import com.visionfit.presentation.designsystem.layout.LocalWindowLayout
+import com.visionfit.presentation.designsystem.layout.VfContentWidth
+import com.visionfit.presentation.designsystem.layout.maxContentWidth
+import com.visionfit.presentation.designsystem.layout.proportionalHeight
 import com.visionfit.presentation.designsystem.theme.VfDimens
 import com.visionfit.presentation.designsystem.theme.VisionFitTheme
 import com.visionfit.presentation.preview.PreviewFixtures
+import com.visionfit.presentation.preview.VisionFitPreview
 
 @Composable
 fun AnalysisRoute(
@@ -100,20 +106,62 @@ fun AnalysisScreen(state: AnalysisUiState, onEvent: (AnalysisEvent) -> Unit, mod
                 onRetry = { onEvent(AnalysisEvent.BackToDashboard) },
                 modifier = Modifier.weight(1f),
             )
-            else -> {
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState())
-                        .padding(start = VfDimens.ScreenPadding, end = VfDimens.ScreenPadding, top = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    AnalysisPhoto(job = job)
-                    StageHeadline(state, job)
-                    AnalysisStepsCard(steps = state.steps, photoSizeBytes = job.photoSizeBytes, failure = job.failure)
-                }
-                AnalysisActions(state, onEvent)
+            LocalWindowLayout.current.usesTwoPanes -> AnalysisTwoPanes(state, job, onEvent, Modifier.weight(1f))
+            else -> AnalysisSingleColumn(state, job, onEvent, Modifier.weight(1f))
+        }
+    }
+}
+
+/** Phones and portrait tablets: photo, progress and steps scroll; the actions stay at the bottom. */
+@Composable
+private fun AnalysisSingleColumn(state: AnalysisUiState, job: AnalysisJob, onEvent: (AnalysisEvent) -> Unit, modifier: Modifier) {
+    val gutter = LocalWindowLayout.current.gutter
+    Column(modifier) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .maxContentWidth(VfContentWidth.Column)
+                .padding(start = gutter, end = gutter, top = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            // 350 × 300 on the design phone; keeps that shape up to tablet width.
+            AnalysisPhoto(job = job, modifier = Modifier.proportionalHeight(ratio = 350f / 300f, minHeight = 240.dp, maxHeight = 460.dp))
+            StageHeadline(state, job)
+            AnalysisStepsCard(steps = state.steps, photoSizeBytes = job.photoSizeBytes, failure = job.failure)
+        }
+        AnalysisActions(state, onEvent, Modifier.maxContentWidth(VfContentWidth.Column).padding(horizontal = gutter))
+    }
+}
+
+/** Landscape and wide windows: the photo fills the left half, progress and actions the right. */
+@Composable
+private fun AnalysisTwoPanes(state: AnalysisUiState, job: AnalysisJob, onEvent: (AnalysisEvent) -> Unit, modifier: Modifier) {
+    val gutter = LocalWindowLayout.current.gutter
+    Row(
+        modifier = modifier.maxContentWidth(VfContentWidth.TwoPane).padding(horizontal = gutter),
+        horizontalArrangement = Arrangement.spacedBy(24.dp),
+    ) {
+        AnalysisPhoto(
+            job = job,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .padding(top = 12.dp, bottom = 22.dp),
+        )
+        Column(Modifier.weight(1f).fillMaxHeight()) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    // Room for the hard shadow of the steps card.
+                    .padding(top = 12.dp, end = VfDimens.ShadowM),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                StageHeadline(state, job)
+                AnalysisStepsCard(steps = state.steps, photoSizeBytes = job.photoSizeBytes, failure = job.failure)
             }
+            AnalysisActions(state, onEvent)
         }
     }
 }
@@ -146,12 +194,12 @@ private fun StageHeadline(state: AnalysisUiState, job: AnalysisJob) {
 }
 
 @Composable
-private fun AnalysisActions(state: AnalysisUiState, onEvent: (AnalysisEvent) -> Unit) {
+private fun AnalysisActions(state: AnalysisUiState, onEvent: (AnalysisEvent) -> Unit, modifier: Modifier = Modifier) {
     val colors = VisionFitTheme.colors
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .padding(start = VfDimens.ScreenPadding, end = VfDimens.ScreenPadding, top = 12.dp, bottom = 22.dp),
+            .padding(top = 12.dp, bottom = if (LocalWindowLayout.current.isShort) 12.dp else 22.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         when (state.stage) {
@@ -200,29 +248,35 @@ private fun AnalysisActions(state: AnalysisUiState, onEvent: (AnalysisEvent) -> 
 @Preview(widthDp = 390, heightDp = 844)
 @Composable
 private fun AnalysisRecognizingPreview() {
-    VisionFitTheme { AnalysisScreen(state = PreviewFixtures.analysis(AnalysisStage.RECOGNIZING), onEvent = {}) }
+    VisionFitPreview { AnalysisScreen(state = PreviewFixtures.analysis(AnalysisStage.RECOGNIZING), onEvent = {}) }
 }
 
 @Preview(widthDp = 390, heightDp = 844)
 @Composable
 private fun AnalysisCompletedPreview() {
-    VisionFitTheme { AnalysisScreen(state = PreviewFixtures.analysis(AnalysisStage.COMPLETED), onEvent = {}) }
+    VisionFitPreview { AnalysisScreen(state = PreviewFixtures.analysis(AnalysisStage.COMPLETED), onEvent = {}) }
 }
 
 @Preview(widthDp = 390, heightDp = 844)
 @Composable
 private fun AnalysisFailedPreview() {
-    VisionFitTheme { AnalysisScreen(state = PreviewFixtures.analysis(AnalysisStage.FAILED), onEvent = {}) }
+    VisionFitPreview { AnalysisScreen(state = PreviewFixtures.analysis(AnalysisStage.FAILED), onEvent = {}) }
 }
 
 @Preview(widthDp = 390, heightDp = 844)
 @Composable
 private fun AnalysisMissingPreview() {
-    VisionFitTheme { AnalysisScreen(state = AnalysisUiState(isLoading = false, isMissing = true), onEvent = {}) }
+    VisionFitPreview { AnalysisScreen(state = AnalysisUiState(isLoading = false, isMissing = true), onEvent = {}) }
 }
 
 @Preview(widthDp = 390, heightDp = 400)
 @Composable
 private fun AnalysisLoadingPreview() {
-    VisionFitTheme { Box(Modifier.fillMaxSize()) { AnalysisScreen(state = AnalysisUiState(), onEvent = {}) } }
+    VisionFitPreview { Box(Modifier.fillMaxSize()) { AnalysisScreen(state = AnalysisUiState(), onEvent = {}) } }
+}
+
+@Preview(widthDp = 844, heightDp = 390)
+@Composable
+private fun AnalysisLandscapePreview() {
+    VisionFitPreview { AnalysisScreen(state = PreviewFixtures.analysis(AnalysisStage.COMPLETED), onEvent = {}) }
 }

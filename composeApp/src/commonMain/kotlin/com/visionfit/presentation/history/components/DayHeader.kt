@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DisplayMode
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
@@ -40,6 +41,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.visionfit.core.format.VnFormat
@@ -50,6 +52,7 @@ import com.visionfit.presentation.designsystem.components.MacroPills
 import com.visionfit.presentation.designsystem.components.VfTextButton
 import com.visionfit.presentation.designsystem.components.animatedProgress
 import com.visionfit.presentation.designsystem.components.popIn
+import com.visionfit.presentation.designsystem.layout.LocalWindowLayout
 import com.visionfit.presentation.designsystem.theme.VfDimens
 import com.visionfit.presentation.designsystem.theme.VfRadius
 import com.visionfit.presentation.designsystem.theme.VisionFitTheme
@@ -65,6 +68,7 @@ fun DateChipsRow(
     today: LocalDate?,
     onDateSelected: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
+    horizontalPadding: Dp = VfDimens.ScreenPadding,
 ) {
     val listState = rememberLazyListState()
     LaunchedEffect(selected, dates) {
@@ -74,7 +78,7 @@ fun DateChipsRow(
     LazyRow(
         state = listState,
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(start = VfDimens.ScreenPadding, end = VfDimens.ScreenPadding, top = 2.dp, bottom = 6.dp),
+        contentPadding = PaddingValues(start = horizontalPadding, end = horizontalPadding, top = 2.dp, bottom = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items(dates, key = { it.toString() }) { date ->
@@ -202,7 +206,10 @@ fun DaySummaryCard(summary: DaySummary, isToday: Boolean, modifier: Modifier = M
     }
 }
 
-/** Material 3 date picker limited to today and earlier. */
+/**
+ * Material 3 date picker limited to today and earlier. On a phone held sideways the calendar
+ * grid does not fit, so it opens in text-input mode (the toggle still switches to the grid).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DiaryDatePickerDialog(
@@ -212,8 +219,10 @@ fun DiaryDatePickerDialog(
     onDismiss: () -> Unit,
 ) {
     val todayMillis = today.toEpochMillis()
+    val isShort = LocalWindowLayout.current.isShort
     val state = rememberDatePickerState(
         initialSelectedDateMillis = initialDate.toEpochMillis(),
+        initialDisplayMode = if (isShort) DisplayMode.Input else DisplayMode.Picker,
         selectableDates = object : SelectableDates {
             override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis <= todayMillis
             override fun isSelectableYear(year: Int): Boolean = year <= today.year
@@ -229,7 +238,7 @@ fun DiaryDatePickerDialog(
         },
         dismissButton = { VfTextButton(text = "Hủy", onClick = onDismiss, color = VisionFitTheme.colors.textSecondary) },
     ) {
-        DatePicker(state = state, showModeToggle = false)
+        DatePicker(state = state, showModeToggle = isShort)
     }
 }
 

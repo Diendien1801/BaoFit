@@ -15,6 +15,7 @@ import com.visionfit.presentation.camera.CaptureMode
 import kotlinx.datetime.LocalTime
 import com.visionfit.presentation.dashboard.DashboardScreen
 import com.visionfit.presentation.preview.PreviewFixtures
+import com.visionfit.presentation.preview.VisionFitPreview
 import com.visionfit.presentation.history.HistoryScreen
 import com.visionfit.presentation.goal.GoalScreen
 import com.visionfit.presentation.goal.GoalUiState
@@ -22,7 +23,6 @@ import com.visionfit.presentation.review.ReviewScreen
 import com.visionfit.presentation.onboarding.OnboardingScreen
 import com.visionfit.presentation.onboarding.OnboardingUiState
 import com.visionfit.presentation.auth.AuthUiState
-import com.visionfit.presentation.designsystem.theme.VisionFitTheme
 import org.jetbrains.skia.EncodedImageFormat
 import java.io.File
 import kotlin.test.Test
@@ -131,7 +131,7 @@ class ScreenshotSmokeTest {
             height = (heightDp * scale).toInt(),
             density = Density(scale),
         ) {
-            VisionFitTheme(content)
+            VisionFitPreview(content)
         }
         try {
             // Let resources load (real time) and entrance animations finish (frame time).

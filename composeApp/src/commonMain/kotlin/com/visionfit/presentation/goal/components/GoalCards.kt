@@ -41,6 +41,8 @@ import com.visionfit.presentation.designsystem.components.popIn
 import com.visionfit.presentation.designsystem.components.wiggle
 import com.visionfit.presentation.designsystem.icons.VfIcon
 import com.visionfit.presentation.designsystem.icons.VfIcons
+import com.visionfit.presentation.designsystem.layout.AdaptiveGrid
+import com.visionfit.presentation.designsystem.layout.withFontScale
 import com.visionfit.presentation.designsystem.theme.VfDimens
 import com.visionfit.presentation.designsystem.theme.VfRadius
 import com.visionfit.presentation.designsystem.theme.VisionFitTheme
@@ -80,20 +82,25 @@ fun TargetEnergyCard(target: NutritionTarget, modifier: Modifier = Modifier) {
                         modifier = Modifier.alignByBaseline(),
                     )
                 }
-                Row(
-                    modifier = Modifier.padding(top = 14.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    StatCell("BMR", VnFormat.thousands(target.bmrKcal), Modifier.weight(1f))
-                    StatCell("TDEE ×${VnFormat.factor(target.activityMultiplier)}", VnFormat.thousands(target.tdeeKcal), Modifier.weight(1f))
-                    StatCell(
-                        label = "Điều chỉnh",
-                        value = VnFormat.signed(target.adjustmentKcal),
-                        modifier = Modifier.weight(1f),
-                        background = colors.ink,
-                        labelColor = colors.onPrimaryMuted,
-                        valueColor = colors.yellow,
-                    )
+                val stats = listOf(
+                    Stat("BMR", VnFormat.thousands(target.bmrKcal)),
+                    Stat("TDEE ×${VnFormat.factor(target.activityMultiplier)}", VnFormat.thousands(target.tdeeKcal)),
+                    Stat("Điều chỉnh", VnFormat.signed(target.adjustmentKcal), isAccent = true),
+                )
+                // Three across; two, then one, on the narrowest phones so no label gets cut.
+                AdaptiveGrid(items = stats, minCellWidth = 84.dp.withFontScale(), spacing = 8.dp, modifier = Modifier.padding(top = 14.dp)) { stat, cellModifier ->
+                    if (stat.isAccent) {
+                        StatCell(
+                            label = stat.label,
+                            value = stat.value,
+                            modifier = cellModifier,
+                            background = colors.ink,
+                            labelColor = colors.onPrimaryMuted,
+                            valueColor = colors.yellow,
+                        )
+                    } else {
+                        StatCell(stat.label, stat.value, cellModifier)
+                    }
                 }
             }
         }
@@ -106,6 +113,8 @@ fun TargetEnergyCard(target: NutritionTarget, modifier: Modifier = Modifier) {
         )
     }
 }
+
+private data class Stat(val label: String, val value: String, val isAccent: Boolean = false)
 
 @Composable
 private fun StatCell(

@@ -32,7 +32,8 @@ data/          mock/ (in-memory store + seed data + mock AI), repository/ (Mock*
 di/            AppContainer — manual DI; swap Mock* for Ktor-backed repositories here
 presentation/
   designsystem/  theme tokens (Color, Type, Dimens), components (BrutalSurface, buttons, pills, rings,
-                 bottom bar, snackbar, motion), icons (SVG paths from the design)
+                 bottom bar / side rail, snackbar, motion), layout (window size classes, adaptive
+                 helpers), icons (SVG paths from the design)
   <feature>/     <Feature>Contract.kt (UiState, Event, Effect), <Feature>ViewModel.kt,
                  <Feature>Screen.kt (stateful Route + stateless Screen + @Previews), components/
   navigation/    type-safe destinations + NavHost
@@ -41,6 +42,24 @@ presentation/
 
 Unidirectional flow per screen: `Screen(state, onEvent)` → `ViewModel.onEvent` → repositories/use cases
 → `state: StateFlow<UiState>`; navigation and messages go through `effects: Flow<Effect>`.
+
+## Responsive layout
+
+`designsystem/layout/WindowLayout.kt` measures the window once at the root (Material 3 size classes:
+600 / 840 dp wide, 480 dp tall) and every screen picks its layout from `LocalWindowLayout`:
+
+| Window | Navigation | Screens |
+|--------|------------|---------|
+| Phone, portrait (< 600 dp wide) | floating bottom bar | one column, as designed; below 360 dp gutters tighten and crowded rows stack |
+| Phone, landscape (< 480 dp tall) | side rail | two panes (photo · details, summary · list); footers shrink to one row |
+| Tablet, portrait (600–839 dp) | side rail | one centered column, at most 640 dp wide |
+| Tablet landscape, desktop (≥ 840 dp) | side rail | two panes, at most 1180 dp wide |
+
+Inside screens, components adapt to the space they get: `AdaptiveGrid` picks its column count from the
+available width, `ScaleDownToFit` shrinks fixed compositions (the sign-in collage), `proportionalHeight`
+keeps photos from turning into strips, and `withFontScale()` makes text-driven breakpoints grow with the
+system font size. `ResponsiveScreenshotTest` renders every screen at 320 × 640, 844 × 390, 390 × 844 with
+130 % text, 834 × 1194, 1194 × 834 and 1280 × 800 into `composeApp/build/screenshots/responsive/`.
 
 ## Run
 

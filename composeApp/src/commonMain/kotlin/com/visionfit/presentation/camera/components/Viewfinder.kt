@@ -73,7 +73,8 @@ fun CameraViewfinder(
                 .graphicsLayer { scaleX = if (lens == CameraLens.FRONT) -1f else 1f },
         )
         FrameCorners()
-        HintChip(Modifier.align(Alignment.TopCenter).padding(top = 24.dp))
+        // Side padding lets the hint wrap instead of touching the frame when the frame is narrow.
+        HintChip(Modifier.align(Alignment.TopCenter).padding(start = 16.dp, end = 16.dp, top = 24.dp))
         UploadingOverlay(visible = isSubmitting)
     }
 }

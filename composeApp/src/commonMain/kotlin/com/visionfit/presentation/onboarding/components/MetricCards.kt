@@ -13,10 +13,7 @@ import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -46,7 +43,6 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.visionfit.domain.model.Sex
 import com.visionfit.presentation.designsystem.components.BrutalSurface
@@ -242,20 +238,5 @@ private fun RepeatingStepButton(
         contentAlignment = Alignment.Center,
     ) {
         VfIcon(icon, contentDescription = null, size = 18.dp, tint = colors.ink)
-    }
-}
-
-/** Two equal-height cells per row. */
-@Composable
-fun TwoColumnRow(
-    modifier: Modifier = Modifier,
-    spacing: Dp = 12.dp,
-    content: @Composable RowScope.(cellModifier: Modifier) -> Unit,
-) {
-    Row(
-        modifier = modifier.height(IntrinsicSize.Min),
-        horizontalArrangement = Arrangement.spacedBy(spacing),
-    ) {
-        content(Modifier.weight(1f).fillMaxHeight())
     }
 }

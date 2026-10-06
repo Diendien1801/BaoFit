@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -290,14 +291,19 @@ private fun NumberField(
 fun AddFoodButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = VisionFitTheme.colors
     BrutalSurface(
-        modifier = modifier.fillMaxWidth().height(54.dp),
+        modifier = modifier.fillMaxWidth().heightIn(min = 54.dp),
         shape = RoundedCornerShape(VfRadius.XL),
         dashed = true,
         shadowOffset = 0.dp,
         onClick = onClick,
         contentAlignment = Alignment.Center,
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        // Wraps to two lines on narrow phones instead of cutting the label.
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Box(
                 modifier = Modifier
                     .size(26.dp)
@@ -308,7 +314,12 @@ fun AddFoodButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
             ) {
                 VfIcon(VfIcons.Plus, contentDescription = null, size = 14.dp, tint = colors.ink, strokeWidth = 3.4f)
             }
-            Text(text = "Thêm món AI bỏ sót (vd. cơm trắng)", style = VisionFitTheme.type.labelXL)
+            Text(
+                text = "Thêm món AI bỏ sót (vd. cơm trắng)",
+                style = VisionFitTheme.type.labelXL,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f, fill = false),
+            )
         }
     }
 }

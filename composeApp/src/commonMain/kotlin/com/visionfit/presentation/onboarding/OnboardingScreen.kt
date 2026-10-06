@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -34,6 +36,12 @@ import com.visionfit.presentation.designsystem.components.VfPrimaryButton
 import com.visionfit.presentation.designsystem.components.VfTopBar
 import com.visionfit.presentation.designsystem.components.popIn
 import com.visionfit.presentation.designsystem.components.topBorder
+import com.visionfit.presentation.designsystem.layout.AdaptiveGrid
+import com.visionfit.presentation.designsystem.layout.LocalWindowLayout
+import com.visionfit.presentation.designsystem.layout.WidthClass
+import com.visionfit.presentation.designsystem.layout.maxContentWidth
+import com.visionfit.presentation.designsystem.layout.safeHorizontal
+import com.visionfit.presentation.designsystem.layout.withFontScale
 import com.visionfit.presentation.designsystem.theme.VfDimens
 import com.visionfit.presentation.designsystem.theme.VisionFitTheme
 import com.visionfit.presentation.onboarding.components.ActivityChoice
@@ -41,7 +49,7 @@ import com.visionfit.presentation.onboarding.components.GoalChoice
 import com.visionfit.presentation.onboarding.components.SexCard
 import com.visionfit.presentation.onboarding.components.StepperCard
 import com.visionfit.presentation.onboarding.components.TdeeSummaryRow
-import com.visionfit.presentation.onboarding.components.TwoColumnRow
+import com.visionfit.presentation.preview.VisionFitPreview
 
 @Composable
 fun OnboardingRoute(
@@ -64,6 +72,7 @@ fun OnboardingRoute(
 
 @Composable
 fun OnboardingScreen(state: OnboardingUiState, onEvent: (OnboardingEvent) -> Unit, modifier: Modifier = Modifier) {
+    val gutter = LocalWindowLayout.current.gutter
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -78,7 +87,9 @@ fun OnboardingScreen(state: OnboardingUiState, onEvent: (OnboardingEvent) -> Uni
             modifier = Modifier
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = VfDimens.ScreenPadding, vertical = 16.dp),
+                .windowInsetsPadding(WindowInsets.safeHorizontal)
+                .maxContentWidth(FormMaxWidth)
+                .padding(horizontal = gutter, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(
@@ -94,19 +105,25 @@ fun OnboardingScreen(state: OnboardingUiState, onEvent: (OnboardingEvent) -> Uni
     }
 }
 
+/** Four tiles fit side by side on tablets; two columns on phones and one on the narrowest. */
+private val FormMaxWidth = 760.dp
+
+private enum class BodyMetricCell { SEX, AGE, HEIGHT, WEIGHT }
+
 @Composable
 private fun BodyMetricsGrid(state: OnboardingUiState, onEvent: (OnboardingEvent) -> Unit) {
     val colors = VisionFitTheme.colors
     val profile = state.profile
     fun stepper(metric: BodyMetric) = { delta: Int -> onEvent(OnboardingEvent.MetricStepped(metric, delta)) }
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        TwoColumnRow { cell ->
-            SexCard(
+    // Below 150 dp a tile cannot hold "172 cm" next to its buttons without breaking the number.
+    AdaptiveGrid(items = BodyMetricCell.entries, minCellWidth = 150.dp.withFontScale(), maxColumns = 4) { cell, cellModifier ->
+        when (cell) {
+            BodyMetricCell.SEX -> SexCard(
                 sex = profile.sex,
                 onSexSelected = { onEvent(OnboardingEvent.SexSelected(it)) },
-                modifier = cell.popIn(delayMillis = 50),
+                modifier = cellModifier.popIn(delayMillis = 50),
             )
-            StepperCard(
+            BodyMetricCell.AGE -> StepperCard(
                 label = "Tuổi",
                 value = profile.ageYears,
                 unit = "tuổi",
@@ -116,11 +133,9 @@ private fun BodyMetricsGrid(state: OnboardingUiState, onEvent: (OnboardingEvent)
                 canDecrease = state.canDecrease(BodyMetric.AGE),
                 increaseLabel = "Tăng tuổi",
                 decreaseLabel = "Giảm tuổi",
-                modifier = cell.popIn(delayMillis = 120),
+                modifier = cellModifier.popIn(delayMillis = 120),
             )
-        }
-        TwoColumnRow { cell ->
-            StepperCard(
+            BodyMetricCell.HEIGHT -> StepperCard(
                 label = "Chiều cao",
                 value = profile.heightCm,
                 unit = "cm",
@@ -130,9 +145,9 @@ private fun BodyMetricsGrid(state: OnboardingUiState, onEvent: (OnboardingEvent)
                 canDecrease = state.canDecrease(BodyMetric.HEIGHT),
                 increaseLabel = "Tăng chiều cao",
                 decreaseLabel = "Giảm chiều cao",
-                modifier = cell.popIn(delayMillis = 190),
+                modifier = cellModifier.popIn(delayMillis = 190),
             )
-            StepperCard(
+            BodyMetricCell.WEIGHT -> StepperCard(
                 label = "Cân nặng",
                 value = profile.weightKg,
                 unit = "kg",
@@ -142,7 +157,7 @@ private fun BodyMetricsGrid(state: OnboardingUiState, onEvent: (OnboardingEvent)
                 canDecrease = state.canDecrease(BodyMetric.WEIGHT),
                 increaseLabel = "Tăng cân nặng",
                 decreaseLabel = "Giảm cân nặng",
-                modifier = cell.popIn(delayMillis = 260),
+                modifier = cellModifier.popIn(delayMillis = 260),
             )
         }
     }
@@ -150,33 +165,25 @@ private fun BodyMetricsGrid(state: OnboardingUiState, onEvent: (OnboardingEvent)
 
 @Composable
 private fun ActivityGrid(selected: ActivityLevel, onEvent: (OnboardingEvent) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        ActivityLevel.entries.chunked(2).forEach { pair ->
-            TwoColumnRow(spacing = 10.dp) { cell ->
-                pair.forEach { level ->
-                    ActivityChoice(
-                        level = level,
-                        selected = level == selected,
-                        onClick = { onEvent(OnboardingEvent.ActivitySelected(level)) },
-                        modifier = cell,
-                    )
-                }
-            }
-        }
+    AdaptiveGrid(items = ActivityLevel.entries, minCellWidth = 150.dp.withFontScale(), maxColumns = 4, spacing = 10.dp) { level, cellModifier ->
+        ActivityChoice(
+            level = level,
+            selected = level == selected,
+            onClick = { onEvent(OnboardingEvent.ActivitySelected(level)) },
+            modifier = cellModifier,
+        )
     }
 }
 
 @Composable
 private fun GoalRow(selected: FitnessGoal, onEvent: (OnboardingEvent) -> Unit) {
-    TwoColumnRow(spacing = 10.dp) { cell ->
-        FitnessGoal.entries.forEach { goal ->
-            GoalChoice(
-                goal = goal,
-                selected = goal == selected,
-                onClick = { onEvent(OnboardingEvent.GoalSelected(goal)) },
-                modifier = cell,
-            )
-        }
+    AdaptiveGrid(items = FitnessGoal.entries, minCellWidth = 130.dp.withFontScale(), spacing = 10.dp) { goal, cellModifier ->
+        GoalChoice(
+            goal = goal,
+            selected = goal == selected,
+            onClick = { onEvent(OnboardingEvent.GoalSelected(goal)) },
+            modifier = cellModifier,
+        )
     }
 }
 
@@ -188,19 +195,16 @@ private fun Section(title: String, content: @Composable ColumnScope.() -> Unit) 
     }
 }
 
+/**
+ * Live TDEE → target and the submit button. Stacked on phones; side by side from medium width
+ * and on phones held sideways, where the footer would otherwise eat half of the height.
+ */
 @Composable
 private fun OnboardingFooter(state: OnboardingUiState, onEvent: (OnboardingEvent) -> Unit) {
     val colors = VisionFitTheme.colors
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(colors.surface)
-            .topBorder(VfDimens.Border, colors.ink)
-            .windowInsetsPadding(WindowInsets.navigationBars)
-            .padding(start = VfDimens.ScreenPadding, end = VfDimens.ScreenPadding, top = 14.dp, bottom = 22.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        state.target?.let { TdeeSummaryRow(tdeeKcal = it.tdeeKcal, targetKcal = it.dailyKcal) }
+    val layout = LocalWindowLayout.current
+    val sideBySide = layout.widthClass != WidthClass.COMPACT || layout.isShort
+    val submit: @Composable (Modifier) -> Unit = { buttonModifier ->
         VfPrimaryButton(
             text = "Tính mục tiêu của tôi",
             onClick = { onEvent(OnboardingEvent.Submit) },
@@ -208,14 +212,47 @@ private fun OnboardingFooter(state: OnboardingUiState, onEvent: (OnboardingEvent
             contentColor = colors.surface,
             iconTint = colors.yellow,
             loading = state.isSaving,
+            modifier = buttonModifier,
         )
+    }
+    val footerModifier = Modifier
+        .windowInsetsPadding(WindowInsets.safeHorizontal)
+        .maxContentWidth(FormMaxWidth)
+        .padding(
+            start = layout.gutter,
+            end = layout.gutter,
+            top = if (layout.isShort) 10.dp else 14.dp,
+            bottom = if (layout.isShort) 12.dp else 22.dp,
+        )
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(colors.surface)
+            .topBorder(VfDimens.Border, colors.ink)
+            .windowInsetsPadding(WindowInsets.navigationBars),
+    ) {
+        if (sideBySide) {
+            Row(
+                modifier = footerModifier,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                state.target?.let { TdeeSummaryRow(tdeeKcal = it.tdeeKcal, targetKcal = it.dailyKcal, modifier = Modifier.weight(1f)) }
+                submit(Modifier.weight(1f))
+            }
+        } else {
+            Column(modifier = footerModifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                state.target?.let { TdeeSummaryRow(tdeeKcal = it.tdeeKcal, targetKcal = it.dailyKcal) }
+                submit(Modifier)
+            }
+        }
     }
 }
 
 @Preview(widthDp = 390, heightDp = 844)
 @Composable
 private fun OnboardingPreview() {
-    VisionFitTheme {
+    VisionFitPreview {
         val profile = BodyProfile.Default
         OnboardingScreen(
             state = OnboardingUiState(profile = profile, target = CalculateNutritionTargetUseCase()(profile)),
@@ -227,7 +264,7 @@ private fun OnboardingPreview() {
 @Preview(widthDp = 390, heightDp = 844)
 @Composable
 private fun OnboardingFemaleBulkPreview() {
-    VisionFitTheme {
+    VisionFitPreview {
         val profile = BodyProfile.Default.copy(
             sex = Sex.FEMALE,
             ageYears = 90,
@@ -238,6 +275,18 @@ private fun OnboardingFemaleBulkPreview() {
         )
         OnboardingScreen(
             state = OnboardingUiState(profile = profile, target = CalculateNutritionTargetUseCase()(profile), isEditing = true),
+            onEvent = {},
+        )
+    }
+}
+
+@Preview(widthDp = 834, heightDp = 1194)
+@Composable
+private fun OnboardingTabletPreview() {
+    VisionFitPreview {
+        val profile = BodyProfile.Default
+        OnboardingScreen(
+            state = OnboardingUiState(profile = profile, target = CalculateNutritionTargetUseCase()(profile)),
             onEvent = {},
         )
     }
