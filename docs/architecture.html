@@ -1,0 +1,2043 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VisionFit Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#F4F0FF; --surface:#FFFFFF; --surface-2:#FAF8FF; --text:#1B1530; --muted:#4A4363; --faint:#6A6485;
+  --line:#1B1530; --shadow:#1B1530; --dots:rgba(27,21,48,.07); --ink-fill:#1B1530; --on-ink:#FFFFFF;
+  --primary:#5B3FE0; --primary-c:#E7E0FF; --yellow:#FFC53D; --yellow-c:#FFF0C2; --mint:#2DD4A0; --mint-c:#C7F5E3;
+  --coral:#FF5A36; --coral-c:#FFE1D9; --sky:#3AA8FF; --sky-c:#CDE8FF; --pink:#FF7AB6; --pink-c:#FFD6E8;
+  --gray:#8E87A8; --gray-c:#ECE8F7;
+  --code-bg:#1B1530; --code-text:#EDE9FF; --code-c:#8E87A8; --code-s:#7EE0B8; --code-k:#FF9BC8; --code-t:#FFD36E; --code-a:#8CC8FF; --code-n:#FFB39E;
+  --L-platform:var(--gray); --L-platform-c:var(--gray-c);
+  --L-root:var(--primary); --L-root-c:var(--primary-c);
+  --L-pres:var(--pink); --L-pres-c:var(--pink-c);
+  --L-domain:var(--mint); --L-domain-c:var(--mint-c);
+  --L-data:var(--yellow); --L-data-c:var(--yellow-c);
+  --L-core:var(--sky); --L-core-c:var(--sky-c);
+  --L-di:var(--coral); --L-di-c:var(--coral-c);
+  --L-test:var(--primary); --L-test-c:var(--primary-c);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:#13101E; --surface:#1E1830; --surface-2:#251E3A; --text:#EFEAFF; --muted:#BDB5DA; --faint:#9C94BC;
+    --line:#8E87A8; --shadow:#000000; --dots:rgba(239,234,255,.06); --ink-fill:#EFEAFF; --on-ink:#1B1530;
+    --primary:#8F7BFF; --primary-c:#2E2560; --yellow-c:#3D3214; --mint-c:#133B30; --coral-c:#43201A; --sky-c:#12324D; --pink-c:#42203A; --gray-c:#2A2440;
+    --code-bg:#0E0B17; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg:#13101E; --surface:#1E1830; --surface-2:#251E3A; --text:#EFEAFF; --muted:#BDB5DA; --faint:#9C94BC;
+  --line:#8E87A8; --shadow:#000000; --dots:rgba(239,234,255,.06); --ink-fill:#EFEAFF; --on-ink:#1B1530;
+  --primary:#8F7BFF; --primary-c:#2E2560; --yellow-c:#3D3214; --mint-c:#133B30; --coral-c:#43201A; --sky-c:#12324D; --pink-c:#42203A; --gray-c:#2A2440;
+  --code-bg:#0E0B17; color-scheme: dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 "Be Vietnam Pro",system-ui,sans-serif;
+  background-image:radial-gradient(var(--dots) 1px,transparent 1px);background-size:18px 18px}
+h1,h2,h3,h4{font-family:"Baloo 2",system-ui,sans-serif;line-height:1.15;margin:0}
+code,.mono{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:.84em}
+p code,li code,td code,.d-sum code{background:var(--surface-2);border:1px solid color-mix(in srgb,var(--line) 25%,transparent);border-radius:6px;padding:0 4px}
+a{color:var(--primary)}
+button{font:inherit;color:inherit}
+.wrap{max-width:1460px;margin:0 auto;padding:0 16px}
+
+/* header */
+header.top{padding:26px 0 14px}
+.brand{display:flex;gap:14px;align-items:center}
+.logo{flex:none;width:52px;height:52px;border:2px solid var(--line);border-radius:16px;background:var(--yellow);box-shadow:3px 3px 0 var(--shadow);display:grid;place-items:center;font:800 24px "Baloo 2";color:#1B1530}
+h1{font-size:clamp(26px,4vw,40px)}
+.lede{color:var(--muted);max-width:860px;margin:8px 0 0}
+.stats{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.stat{border:2px solid var(--line);border-radius:999px;padding:3px 12px;background:var(--surface);font-weight:600;font-size:13px;box-shadow:2px 2px 0 var(--shadow)}
+.stat b{font-family:"Baloo 2";font-size:17px;margin-right:4px}
+.theme-btn{margin-left:auto;flex:none;border:2px solid var(--line);background:var(--surface);border-radius:12px;padding:6px 10px;cursor:pointer;box-shadow:2px 2px 0 var(--shadow);font-weight:600;font-size:13px}
+
+/* tabs */
+nav.tabs{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:2px solid var(--line)}
+.tabs .wrap{display:flex;gap:8px;overflow-x:auto;padding-top:10px;padding-bottom:10px;scrollbar-width:none}
+.tabs .wrap::-webkit-scrollbar{display:none}
+.tab{flex:none;border:2px solid var(--line);background:var(--surface);border-radius:12px;padding:5px 12px;font-weight:600;font-size:14px;cursor:pointer;box-shadow:2px 2px 0 var(--shadow);transition:transform .1s}
+.tab:hover{transform:translate(-1px,-1px)}
+.tab[aria-selected="true"]{background:var(--ink-fill);color:var(--on-ink)}
+.tab .n{font-family:"Baloo 2";opacity:.6;margin-right:4px}
+
+/* layout */
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:22px;padding-top:22px;padding-bottom:70px;align-items:start}
+.panel{display:none}
+.panel.active{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.sec-h{font-size:26px}
+.hint{color:var(--muted);margin:4px 0 16px;max-width:900px}
+.card{background:var(--surface);border:2px solid var(--line);border-radius:18px;box-shadow:4px 4px 0 var(--shadow);padding:16px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.mt{margin-top:18px}
+.pill{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line);border-radius:999px;padding:1px 9px;font-size:12px;font-weight:600;background:var(--surface)}
+.btn{border:2px solid var(--line);background:var(--surface);border-radius:12px;padding:6px 12px;font-weight:600;font-size:13.5px;cursor:pointer;box-shadow:2px 2px 0 var(--shadow);transition:transform .1s}
+.btn:hover{transform:translate(-1px,-1px)}
+.btn:active{transform:translate(1px,1px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.primary{background:var(--primary);color:#fff}
+.btn.yellow{background:var(--yellow);color:#1B1530}
+.btn:disabled{opacity:.4;cursor:default;transform:none}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;font-size:12.5px;color:var(--muted);margin:10px 0 0}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:4px;border:1.5px solid var(--line);vertical-align:-2px;margin-right:5px}
+.legend .ln{display:inline-block;width:26px;height:0;border-top:2.5px solid;vertical-align:middle;margin-right:5px}
+
+/* overview */
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.toolbar label{display:inline-flex;gap:6px;align-items:center;font-size:13.5px;font-weight:600;cursor:pointer}
+.arch{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(170px,230px);gap:14px}
+.layers,.side{display:flex;flex-direction:column;gap:14px;min-width:0}
+.band{border:2px dashed color-mix(in srgb,var(--line) 40%,transparent);border-radius:20px;padding:10px 12px 12px;background:color-mix(in srgb,var(--lc) 11%,transparent)}
+.side .band.grow{flex:1}
+.band-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.band-label i{width:11px;height:11px;border-radius:3px;background:var(--lc);border:1.5px solid var(--line)}
+.band-label span{margin-left:auto;letter-spacing:0;text-transform:none;font-weight:600;color:var(--faint)}
+.row{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+.node{position:relative;z-index:2;background:var(--lcc);border:2px solid var(--line);border-radius:14px;padding:9px 11px 10px;box-shadow:3px 3px 0 var(--shadow);cursor:pointer;transition:transform .12s,box-shadow .12s,opacity .2s;text-align:left;width:100%}
+.node:hover{transform:translate(-2px,-2px);box-shadow:5px 5px 0 var(--shadow)}
+.node.sel{outline:3px solid var(--primary);outline-offset:3px}
+.arch.focus .node:not(.hl){opacity:.32}
+.node h3{font-size:16.5px;display:flex;gap:6px;align-items:baseline;flex-wrap:wrap}
+.node h3 small{font:600 10.5px "JetBrains Mono",monospace;color:var(--faint)}
+.node .sub{font-size:12.5px;color:var(--muted);margin-top:2px;line-height:1.35}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.chip{border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:0 8px;font-size:11.5px;font-weight:600;cursor:pointer;line-height:20px;transition:background .12s}
+.chip:hover,.chip.on{background:var(--yellow);color:#1B1530}
+svg.edges{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;overflow:visible}
+svg.edges path{fill:none;stroke-width:2.2}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-top:16px}
+.rule{border:2px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--surface);font-size:13.5px}
+.rule b{display:block;font-family:"Baloo 2";font-size:16px}
+.ok{color:#0B8F63}.bad{color:#C42A12}
+:root[data-theme="dark"] .ok{color:#5BE0B0} :root[data-theme="dark"] .bad{color:#FF8A70}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .ok{color:#5BE0B0}:root:not([data-theme="light"]) .bad{color:#FF8A70}}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:18px}
+.notes .card h3{font-size:19px;margin-bottom:6px}
+.notes ul{margin:0;padding-left:18px}
+.notes li{margin:5px 0;font-size:14px}
+.warn{background:var(--coral-c)}
+
+/* detail */
+.detail{position:sticky;top:70px;max-height:calc(100vh - 86px);overflow:auto;padding:0}
+.detail-inner{padding:16px 18px 20px}
+.d-head{display:flex;gap:8px;align-items:center;position:sticky;top:0;background:var(--surface);padding:10px 18px;border-bottom:2px solid var(--line);z-index:2}
+.d-head .crumbs{display:flex;gap:4px;flex-wrap:wrap;font-size:12px;color:var(--faint);min-width:0}
+.d-head .crumbs button{border:0;background:none;padding:0;cursor:pointer;color:var(--primary);font-weight:600}
+.d-head .x{margin-left:auto;display:none}
+.d-kicker{display:flex;gap:6px;align-items:center;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.d-kicker i{width:11px;height:11px;border-radius:3px;background:var(--lc);border:1.5px solid var(--line)}
+.d-title{font-size:26px;margin:4px 0 6px}
+.d-path{display:flex;flex-direction:column;gap:3px;margin-bottom:10px}
+.d-path code{font-size:11.5px;color:var(--faint);word-break:break-all}
+.d-sum{margin:0 0 12px}
+.detail h4{font-size:15.5px;margin:16px 0 6px;display:flex;align-items:center;gap:6px}
+.detail ul{margin:0;padding-left:18px}
+.detail li{margin:3px 0;font-size:14px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13.5px}
+.kv dt{color:var(--faint);font-weight:600}
+.kv dd{margin:0}
+.rel{display:flex;flex-wrap:wrap;gap:5px}
+.rel .chip{font-size:12px}
+.empty{color:var(--muted);font-size:14px}
+.empty .big{font:800 46px "Baloo 2";color:var(--primary);line-height:1}
+.contract{display:grid;gap:8px}
+.contract > div{border:2px solid var(--line);border-radius:12px;padding:8px 10px;background:var(--surface-2)}
+.contract h5{margin:0 0 4px;font:700 12px "Be Vietnam Pro";letter-spacing:.06em;text-transform:uppercase}
+.contract ul{padding-left:16px}
+.contract li{font:12.5px/1.45 "JetBrains Mono",monospace;margin:1px 0}
+.tree{font:12.5px/1.6 "JetBrains Mono",monospace;background:var(--surface-2);border:2px solid var(--line);border-radius:12px;padding:10px 12px;overflow-x:auto;white-space:pre}
+.anat{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.anat div{border:2px solid var(--line);border-radius:12px;padding:8px 10px;background:var(--surface-2);font-size:12.5px}
+.anat b{display:block;font:600 12px "JetBrains Mono",monospace;margin-bottom:2px}
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px}
+.sw{border:2px solid var(--line);border-radius:10px;overflow:hidden;font:600 10px "JetBrains Mono",monospace}
+.sw div{height:30px}
+.sw span{display:block;padding:2px 4px;background:var(--surface)}
+.calc{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px}
+.calc label{display:flex;flex-direction:column;gap:2px;font-weight:600}
+.calc input,.calc select{font:inherit;border:2px solid var(--line);border-radius:10px;padding:4px 8px;background:var(--surface);color:var(--text)}
+.calc-out{margin-top:10px;border:2px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--mint-c);font-size:13.5px}
+.calc-out b{font-family:"Baloo 2";font-size:20px}
+
+/* code */
+.code{margin-top:12px;border:2px solid var(--line);border-radius:12px;overflow:hidden;background:var(--code-bg);box-shadow:3px 3px 0 var(--shadow)}
+.code-h{display:flex;align-items:center;gap:8px;padding:5px 10px;background:color-mix(in srgb,var(--code-bg) 85%,#fff);color:var(--code-c);font:600 11px "JetBrains Mono",monospace}
+.code-h span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.code-h button{margin-left:auto;border:1px solid var(--code-c);background:transparent;color:var(--code-text);border-radius:6px;font-size:10.5px;padding:1px 7px;cursor:pointer}
+.code pre{margin:0;padding:10px 12px;overflow-x:auto;color:var(--code-text);font:12px/1.55 "JetBrains Mono",monospace;tab-size:4}
+.code .c{color:var(--code-c);font-style:italic}.code .s{color:var(--code-s)}.code .k{color:var(--code-k)}.code .t{color:var(--code-t)}.code .a{color:var(--code-a)}.code .n{color:var(--code-n)}
+
+/* svg diagrams shared */
+.svgbox{background:var(--surface);border:2px solid var(--line);border-radius:18px;box-shadow:4px 4px 0 var(--shadow);padding:8px;overflow-x:auto}
+.svgbox svg{display:block;width:100%;height:auto}
+.svg-node rect{stroke:var(--line);stroke-width:2}
+.svg-node text{fill:var(--text);font-family:"Be Vietnam Pro",sans-serif}
+.svg-node .t1{font:700 15px "Baloo 2",sans-serif}
+.svg-node .t2{font-size:11px;fill:var(--muted)}
+.svg-node{cursor:pointer}
+.svg-node:hover rect.body{filter:brightness(1.04)}
+.svg-edge{fill:none;stroke:var(--line);stroke-width:2;opacity:.22;transition:opacity .2s,stroke .2s}
+.svg-edge.on{opacity:1;stroke:var(--primary);stroke-width:2.6}
+.svg-edge.in{opacity:1;stroke:var(--coral);stroke-width:2.6}
+.edge-hit{fill:none;stroke:transparent;stroke-width:14;cursor:pointer}
+.elabel{font:600 11px "Be Vietnam Pro",sans-serif;fill:var(--text);paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linejoin:round;pointer-events:none;opacity:0;transition:opacity .2s}
+.elabel.on{opacity:1}
+
+/* nav sim */
+.sim{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin-top:16px}
+.stack{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:36px}
+.stack .ent{border:2px solid var(--line);border-radius:10px;padding:2px 9px;font:600 12.5px "JetBrains Mono",monospace;background:var(--surface-2)}
+.stack .ent.top{background:var(--yellow);color:#1B1530;box-shadow:2px 2px 0 var(--shadow)}
+.stack .arr{color:var(--faint);font-size:12px}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.oplog{font:12px/1.5 "JetBrains Mono",monospace;background:var(--code-bg);color:var(--code-text);border-radius:12px;padding:10px 12px;border:2px solid var(--line);min-height:44px;white-space:pre-wrap}
+.edge-info{font-size:13px;color:var(--muted);margin-top:8px;min-height:20px}
+
+/* MVI */
+.stepper{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0 10px}
+.dots{display:flex;gap:5px;flex-wrap:wrap}
+.dot{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);background:var(--surface);font:700 12px "Baloo 2";cursor:pointer;display:grid;place-items:center;padding:0}
+.dot.on{background:var(--primary);color:#fff}
+.dot.done{background:var(--primary-c)}
+.stepcard h3{font-size:20px}
+.stepcard .who{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.mvi-n rect.body{transition:fill .2s}
+.mvi-n.on rect.body{fill:var(--yellow)}
+.mvi-n.on text{fill:#1B1530}
+.badge-n{font:800 12px "Baloo 2";fill:#fff}
+.mvi-e{fill:none;stroke:var(--line);stroke-width:2;opacity:.25;transition:all .2s}
+.mvi-e.on{opacity:1;stroke:var(--primary);stroke-width:3}
+.mvi-e.done{opacity:.6}
+.cmp{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:16px}
+.cmp .card h3{font-size:18px}
+
+/* DI matrix */
+.chain{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px}
+.chain .lk{border:2px solid var(--line);border-radius:12px;padding:6px 10px;background:var(--surface);cursor:pointer;box-shadow:2px 2px 0 var(--shadow);font-size:13px;text-align:left}
+.chain .lk b{display:block;font:600 12.5px "JetBrains Mono",monospace}
+.chain .lk:hover{background:var(--yellow-c)}
+.chain .to{align-self:center;color:var(--faint);font-weight:700}
+.mx-wrap{overflow-x:auto;margin-top:14px;border:2px solid var(--line);border-radius:16px;background:var(--surface);box-shadow:4px 4px 0 var(--shadow)}
+table.mx{border-collapse:collapse;width:100%;font-size:12.5px;min-width:820px}
+.mx th,.mx td{border-bottom:1px solid color-mix(in srgb,var(--line) 20%,transparent);padding:6px 6px;text-align:center}
+.mx thead th{font-size:11px;vertical-align:bottom;cursor:pointer;font-weight:700}
+.mx thead tr.grp th{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);cursor:default;border-bottom:0}
+.mx tbody th{text-align:left;white-space:nowrap;cursor:pointer;font-weight:600}
+.mx td.hit span{display:inline-block;width:16px;height:16px;border-radius:50%;border:2px solid var(--line);background:var(--cc)}
+.mx .hov{background:color-mix(in srgb,var(--yellow) 22%,transparent)}
+.mx td.args{font:11.5px "JetBrains Mono",monospace;color:var(--muted);text-align:left}
+
+/* pipeline */
+.seq-n text{font:700 12.5px "Be Vietnam Pro",sans-serif;fill:var(--text)}
+.seq-life{stroke:var(--line);stroke-dasharray:4 5;opacity:.45}
+.seq-m{cursor:pointer}
+.seq-m path{fill:none;stroke:var(--line);stroke-width:1.8;opacity:.35}
+.seq-m text{font:600 11px "Be Vietnam Pro",sans-serif;fill:var(--text);opacity:.45;paint-order:stroke;stroke:var(--surface);stroke-width:4px}
+.seq-m.past path,.seq-m.past text{opacity:.85}
+.seq-m.on path{stroke:var(--primary);stroke-width:3;opacity:1}
+.seq-m.on text{opacity:1;font-weight:700}
+.seq-m .num{font:800 10px "Baloo 2";fill:var(--faint);stroke:none;opacity:1}
+.snap{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:10px}
+.snap div{border:2px solid var(--line);border-radius:12px;padding:6px 10px;background:var(--surface-2);font-size:12px}
+.snap b{display:block;font:600 13px "JetBrains Mono",monospace;margin-top:2px}
+.snap .chg{background:var(--yellow-c)}
+.sm{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.st{border:2px solid var(--line);border-radius:12px;padding:6px 10px;background:var(--surface);font:600 12.5px "JetBrains Mono",monospace;box-shadow:2px 2px 0 var(--shadow)}
+.st small{display:block;font:500 11px "Be Vietnam Pro";color:var(--muted)}
+.st.g{background:var(--mint-c)}.st.r{background:var(--coral-c)}.st.y{background:var(--yellow-c)}.st.b{background:var(--sky-c)}
+.sm .ar{font-weight:700;color:var(--faint)}
+
+/* responsive sim */
+.rs{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+.rs-controls label{display:block;font-weight:600;font-size:13.5px;margin-top:10px}
+.rs-controls input[type=range]{width:100%;accent-color:var(--primary)}
+.presets{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.presets .btn{font-size:12px;padding:4px 8px}
+.stage-rs{display:grid;place-items:center;min-height:380px;background:var(--surface-2);border:2px dashed color-mix(in srgb,var(--line) 40%,transparent);border-radius:16px;padding:14px;overflow:hidden}
+.frame{position:relative;border:3px solid var(--line);border-radius:14px;background:var(--bg);overflow:hidden;box-shadow:4px 4px 0 var(--shadow);transition:width .2s,height .2s}
+.frame .rail{position:absolute;left:0;top:0;bottom:0;background:var(--surface);border-right:2px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:10px}
+.frame .rail i,.frame .bar i{display:block;width:12px;height:12px;border-radius:4px;background:var(--gray)}
+.frame .rail i.cam,.frame .bar i.cam{background:var(--primary);width:16px;height:16px;border-radius:50%}
+.frame .bar{position:absolute;left:8%;right:8%;bottom:8px;height:30px;border:2px solid var(--line);border-radius:14px;background:var(--surface);display:flex;align-items:center;justify-content:space-around}
+.frame .content{position:absolute;top:10px;bottom:10px;display:flex;gap:6px}
+.frame .pane{flex:1;border:2px solid var(--line);border-radius:10px;background:var(--surface);display:grid;place-items:center;font:600 10px "Be Vietnam Pro";color:var(--muted);text-align:center;padding:2px}
+.frame .pane.a{background:var(--pink-c)}.frame .pane.b{background:var(--mint-c)}
+.rs-out{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;font-size:13px}
+.rs-out dt{font:600 12px "JetBrains Mono",monospace;color:var(--faint)}
+.rs-out dd{margin:0;font-weight:600}
+.rs-out dd.t{color:#0B8F63}
+.rs-out dd.f{color:var(--faint)}
+table.simple{border-collapse:collapse;width:100%;font-size:13.5px}
+table.simple th,table.simple td{text-align:left;padding:7px 8px;border-bottom:1px solid color-mix(in srgb,var(--line) 22%,transparent);vertical-align:top}
+table.simple th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint)}
+
+/* build */
+.mod{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.mod .card{padding:12px}
+.mod h3{font-size:18px}
+.mod .k{font:600 11.5px "JetBrains Mono",monospace;color:var(--faint)}
+.flowdown{text-align:center;font-weight:700;color:var(--faint);margin:6px 0}
+.tests .card{cursor:pointer;transition:transform .1s}
+.tests .card:hover{transform:translate(-2px,-2px)}
+.tests h3{font-size:17px}
+.tests .tag{float:right}
+
+/* mobile */
+@media (max-width:1100px){
+  .layout{grid-template-columns:minmax(0,1fr)}
+  .detail{position:fixed;left:0;right:0;bottom:0;top:auto;max-height:80vh;border-radius:22px 22px 0 0;transform:translateY(110%);transition:transform .25s ease;z-index:50;box-shadow:0 -4px 0 var(--shadow)}
+  .detail.open{transform:none}
+  .d-head .x{display:inline-flex}
+  .scrim{position:fixed;inset:0;background:rgba(27,21,48,.35);z-index:45;display:none}
+  .scrim.open{display:block}
+  .rs{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:700px){
+  .arch{grid-template-columns:minmax(0,1fr)}
+  .mod{grid-template-columns:minmax(0,1fr)}
+  .anat,.calc{grid-template-columns:1fr}
+  .brand .theme-btn{display:none}
+}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="top wrap">
+  <div class="brand">
+    <div class="logo" aria-hidden="true">VF</div>
+    <div>
+      <h1>VisionFit · Architecture Explorer</h1>
+    </div>
+    <button class="theme-btn" id="themeBtn" type="button">◐ Giao diện</button>
+  </div>
+  <p class="lede">Compose Multiplatform (Android · iOS · Desktop) — toàn bộ code dùng chung nằm trong <code>composeApp/src/commonMain</code>, theo Clean Architecture + MVI. Bấm vào bất kỳ khối, chip, mũi tên hay ô nào để xem chi tiết (bảng bên phải trên desktop, ngăn kéo từ dưới lên trên điện thoại).</p>
+  <div class="stats">
+    <span class="stat"><b>3</b>nền tảng</span>
+    <span class="stat"><b>1</b>module dùng chung</span>
+    <span class="stat"><b>8</b>màn hình</span>
+    <span class="stat"><b>6</b>repository interface</span>
+    <span class="stat"><b>4</b>use case</span>
+    <span class="stat"><b>~12.2k</b>dòng Kotlin (main)</span>
+    <span class="stat"><b>~860</b>dòng test</span>
+  </div>
+</header>
+
+<nav class="tabs" aria-label="Các góc nhìn kiến trúc">
+  <div class="wrap" role="tablist">
+    <button class="tab" role="tab" data-tab="overview"><span class="n">1</span>Tổng quan</button>
+    <button class="tab" role="tab" data-tab="mvi"><span class="n">2</span>Luồng MVI</button>
+    <button class="tab" role="tab" data-tab="nav"><span class="n">3</span>Điều hướng</button>
+    <button class="tab" role="tab" data-tab="di"><span class="n">4</span>DI &amp; phụ thuộc</button>
+    <button class="tab" role="tab" data-tab="pipeline"><span class="n">5</span>Pipeline AI</button>
+    <button class="tab" role="tab" data-tab="responsive"><span class="n">6</span>Responsive</button>
+    <button class="tab" role="tab" data-tab="build"><span class="n">7</span>Build &amp; Test</button>
+  </div>
+</nav>
+
+<main class="wrap layout">
+  <div class="stage">
+
+    <!-- 1. OVERVIEW -->
+    <section class="panel" id="p-overview" role="tabpanel">
+      <h2 class="sec-h">Bức tranh tổng thể</h2>
+      <p class="hint">Các tầng xếp từ trên xuống theo chiều phụ thuộc. Rê chuột lên một khối để thấy nó <b style="color:var(--primary)">phụ thuộc vào</b> gì và <b style="color:var(--coral)">được dùng bởi</b> ai; bấm để ghim và mở chi tiết. Các chip nhỏ bên trong khối mở chi tiết từng thành phần.</p>
+      <div class="toolbar">
+        <label><input type="checkbox" id="allEdges"> Hiện mọi mũi tên phụ thuộc</label>
+        <button class="btn" type="button" id="clearSel">Bỏ chọn</button>
+      </div>
+      <div class="arch" id="arch">
+        <svg class="edges" id="edges" aria-hidden="true">
+          <defs>
+            <marker id="ah-out" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--primary)"/></marker>
+            <marker id="ah-in" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--coral)"/></marker>
+            <marker id="ah-all" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--faint)"/></marker>
+          </defs>
+          <g id="edgeLayer"></g>
+        </svg>
+        <div class="layers" id="layers"></div>
+        <div class="side" id="side"></div>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--L-platform)"></i>Platform shell</span>
+        <span><i style="background:var(--L-root)"></i>App root</span>
+        <span><i style="background:var(--L-pres)"></i>Presentation</span>
+        <span><i style="background:var(--L-domain)"></i>Domain</span>
+        <span><i style="background:var(--L-data)"></i>Data</span>
+        <span><i style="background:var(--L-di)"></i>DI</span>
+        <span><i style="background:var(--L-core)"></i>Core</span>
+        <span><span class="ln" style="border-color:var(--primary)"></span>phụ thuộc vào</span>
+        <span><span class="ln" style="border-color:var(--coral)"></span>được dùng bởi</span>
+        <span><span class="ln" style="border-color:var(--faint);border-top-style:dashed"></span>implements</span>
+      </div>
+
+      <h3 class="mt" style="font-size:20px">Quy tắc phụ thuộc (đã kiểm tra bằng import thực tế)</h3>
+      <div class="rules">
+        <div class="rule"><b class="ok">✓ presentation ↛ data</b>Không file nào trong <code>presentation/</code> import <code>com.visionfit.data</code>. UI chỉ biết interface của domain.</div>
+        <div class="rule"><b class="ok">✓ domain thuần Kotlin</b><code>domain/</code> không import Compose, AndroidX, data hay core — chỉ <code>kotlinx.coroutines</code>/<code>kotlinx.datetime</code>.</div>
+        <div class="rule"><b class="ok">✓ data ↛ presentation</b>Mock repository chỉ phụ thuộc domain + <code>core.time</code>.</div>
+        <div class="rule"><b class="ok">✓ di là nơi duy nhất</b><code>AppContainer</code> là chỗ duy nhất biết đến class <code>Mock*</code> — đổi sang backend thật chỉ sửa 1 file.</div>
+      </div>
+
+      <div class="notes">
+        <div class="card">
+          <h3>💪 Điểm mạnh</h3>
+          <ul>
+            <li>Một khuôn duy nhất cho mọi màn: <code>Contract</code> → <code>ViewModel</code> → <code>Route</code>/<code>Screen</code>.</li>
+            <li>State (StateFlow) tách khỏi Effect (Channel) → không lặp lại điều hướng khi xoay màn hình.</li>
+            <li>Mọi nguồn dữ liệu là <code>Flow</code> phản ứng: lưu một bữa ăn, Dashboard &amp; History tự cập nhật.</li>
+            <li><code>TimeProvider</code> tiêm vào được → test xác định (deterministic), kể cả UI test end-to-end.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>🔌 Điểm mở rộng</h3>
+          <ul>
+            <li>Backend thật: viết repository dùng Ktor theo cùng interface, thay trong <code>AppContainer</code>.</li>
+            <li>Camera thật: <code>CameraSource</code> cho từng nền tảng (CameraX/PhotoPicker, AVFoundation/PHPicker).</li>
+            <li>Ảnh từ xa: <code>MealPhotoImage</code> hiện chỉ đọc <code>bundled://</code> → cần image loader (vd. Coil).</li>
+            <li>Đa ngôn ngữ: chữ tiếng Việt đang viết thẳng trong code → chuyển sang <code>composeResources/values/strings.xml</code>.</li>
+          </ul>
+        </div>
+        <div class="card warn">
+          <h3>⚠️ Cần xử lý</h3>
+          <ul>
+            <li><code>designsystem/components/Responsive.kt</code> (chưa commit) tham chiếu <code>VfDimens.MaxContentWidth</code> — hằng này <b>không tồn tại</b> → module sẽ không compile.</li>
+            <li>File đó cũng trùng chức năng với <code>layout/AdaptiveLayout.kt</code> (<code>maxContentWidth</code>, <code>centeringPadding</code>) và <code>WindowLayout.isShort</code>, và không ai gọi tới → nên xoá.</li>
+            <li><code>MockMealAnalysisRepository</code> cố ý không thread-safe (chỉ chạy trên main) — repository thật phải tự đảm bảo.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. MVI -->
+    <section class="panel" id="p-mvi" role="tabpanel">
+      <h2 class="sec-h">Luồng một chiều (MVI) — ví dụ “Xác nhận &amp; lưu” ở màn Review</h2>
+      <p class="hint">Mọi màn hình đi theo đúng vòng này. Bấm ▶ hoặc số bước để đi từng bước; mỗi bước kèm code thật trong repo. Bấm vào một khối trên sơ đồ để mở chi tiết khối đó.</p>
+      <div class="svgbox"><svg id="mviSvg" viewBox="0 0 1000 420" role="img" aria-label="Sơ đồ vòng MVI"></svg></div>
+      <div class="stepper">
+        <button class="btn" id="mviPrev" type="button">◀ Trước</button>
+        <button class="btn primary" id="mviNext" type="button">Tiếp ▶</button>
+        <button class="btn" id="mviPlay" type="button">⏵ Tự chạy</button>
+        <div class="dots" id="mviDots"></div>
+      </div>
+      <div class="card stepcard" id="mviCard"></div>
+      <div class="cmp">
+        <div class="card"><h3>State · <code>StateFlow&lt;UiState&gt;</code></h3><p>Luôn có giá trị hiện tại, phát lại cho collector mới → sau khi xoay màn hình UI vẽ lại đúng trạng thái. Chỉ đổi qua <code>updateState { copy(...) }</code> (reducer thuần).</p></div>
+        <div class="card"><h3>Effect · <code>Channel&lt;Effect&gt;</code></h3><p>Sự kiện một lần (điều hướng, snackbar, mở URL). <code>Channel.BUFFERED</code> + <code>receiveAsFlow()</code> → mỗi effect được tiêu thụ đúng một lần, không phát lại khi xoay màn hình.</p></div>
+        <div class="card"><h3>Route vs Screen</h3><p><code>XxxRoute</code> có state: tạo ViewModel, collect state, map Effect → callback điều hướng. <code>XxxScreen(state, onEvent)</code> không state → dùng cho <code>@Preview</code> và screenshot test.</p></div>
+      </div>
+    </section>
+
+    <!-- 3. NAV -->
+    <section class="panel" id="p-nav" role="tabpanel">
+      <h2 class="sec-h">Bản đồ điều hướng &amp; mô phỏng back stack</h2>
+      <p class="hint">8 destination type-safe (<code>@Serializable</code>) trong <code>VisionFitNavHost</code>. Bấm một màn để xem Contract của nó; rê lên mũi tên để xem lệnh điều hướng. Bên dưới, bấm các hành động để xem back stack thay đổi đúng như code (<code>popUpTo</code>, <code>launchSingleTop</code>, <code>navigateToDashboard()</code>…).</p>
+      <div class="svgbox"><svg id="navSvg" viewBox="0 0 1000 570" role="img" aria-label="Sơ đồ điều hướng giữa 8 màn hình"></svg></div>
+      <div class="edge-info" id="edgeInfo">Rê chuột lên một mũi tên để xem lệnh điều hướng tương ứng.</div>
+      <div class="sim card">
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+          <h3 style="font-size:19px">Back stack</h3>
+          <span class="pill">đáy → đỉnh</span>
+          <button class="btn" id="simReset" type="button" style="margin-left:auto">↺ Bắt đầu lại</button>
+        </div>
+        <div class="stack" id="simStack"></div>
+        <div><b style="font-size:13.5px">Hành động có thể làm ở màn hiện tại:</b></div>
+        <div class="actions" id="simActions"></div>
+        <div class="oplog" id="simLog">startDestination = AuthDestination</div>
+      </div>
+    </section>
+
+    <!-- 4. DI -->
+    <section class="panel" id="p-di" role="tabpanel">
+      <h2 class="sec-h">Dependency Injection thủ công</h2>
+      <p class="hint">Không dùng Koin/Hilt: một <code>AppContainer</code> tạo sẵn mọi repository &amp; use case, đi xuống cây Compose qua <code>CompositionLocal</code>. Bấm từng mắt xích để xem code.</p>
+      <div class="chain" id="diChain"></div>
+      <div class="mx-wrap"><table class="mx" id="mx"></table></div>
+      <div class="legend"><span>Bấm tên ViewModel → chi tiết màn hình · bấm tiêu đề cột → chi tiết repository/use case · rê chuột để soi hàng/cột.</span></div>
+    </section>
+
+    <!-- 5. PIPELINE -->
+    <section class="panel" id="p-pipeline" role="tabpanel">
+      <h2 class="sec-h">Pipeline phân tích ảnh bằng AI (bất đồng bộ)</h2>
+      <p class="hint">Hành trình xuyên suốt nhiều màn: chụp → phân tích → review → lưu. Điểm mấu chốt: mọi thứ đi qua <code>InMemoryVisionFitStore</code> (MutableStateFlow), nên ViewModel nào đang quan sát cũng tự cập nhật — kể cả Dashboard nằm dưới back stack.</p>
+      <div class="card">
+        <h3 style="font-size:18px;margin-bottom:8px">Máy trạng thái <code>AnalysisStage</code> ↔ <code>PendingStatus</code></h3>
+        <div class="sm">
+          <span class="st b">RECOGNIZING<small>Pending: ANALYZING</small></span><span class="ar">— 3,5s →</span>
+          <span class="st b">CALCULATING<small>Pending: ANALYZING · có detections</small></span><span class="ar">— 3,5s →</span>
+          <span class="st g">COMPLETED<small>Pending: READY_FOR_REVIEW</small></span><span class="ar">— saveMeal →</span>
+          <span class="st y">ConfirmedMeal<small>PendingMeal bị thay thế</small></span>
+        </div>
+        <div class="sm" style="margin-top:10px">
+          <span class="st b">RECOGNIZING</span><span class="ar">— lỗi →</span>
+          <span class="st r">FAILED<small>INVALID_AI_RESPONSE / NO_FOOD_DETECTED</small></span><span class="ar">— retry() →</span>
+          <span class="st b">RECOGNIZING</span>
+          <span class="pill" style="margin-left:6px">Offline: UI hiển thị ANALYZING thành WAITING_FOR_NETWORK (<code>PendingStatus.effective()</code>)</span>
+        </div>
+      </div>
+      <div class="stepper">
+        <button class="btn" id="seqPrev" type="button">◀ Trước</button>
+        <button class="btn primary" id="seqNext" type="button">Tiếp ▶</button>
+        <button class="btn" id="seqPlay" type="button">⏵ Tự chạy</button>
+        <span class="pill" id="seqCount"></span>
+      </div>
+      <div class="card" id="seqCard" style="margin-bottom:14px"></div>
+      <div class="svgbox"><svg id="seqSvg" role="img" aria-label="Sơ đồ tuần tự pipeline phân tích"></svg></div>
+    </section>
+
+    <!-- 6. RESPONSIVE -->
+    <section class="panel" id="p-responsive" role="tabpanel">
+      <h2 class="sec-h">Responsive: <code>WindowLayout</code></h2>
+      <p class="hint"><code>ProvideWindowLayout</code> đo cửa sổ một lần ở gốc rồi cung cấp qua <code>LocalWindowLayout</code>; mọi màn tự chọn bố cục từ đó. Kéo thanh trượt — kết quả dưới đây chạy đúng công thức trong <code>WindowLayout.kt</code>.</p>
+      <div class="rs">
+        <div class="stage-rs"><div class="frame" id="rsFrame"></div></div>
+        <div class="card rs-controls">
+          <div class="presets" id="rsPresets"></div>
+          <label>Rộng: <span id="rsWv"></span> dp<input type="range" id="rsW" min="280" max="1440" value="390"></label>
+          <label>Cao: <span id="rsHv"></span> dp<input type="range" id="rsH" min="320" max="1300" value="844"></label>
+          <dl class="rs-out mt" id="rsOut"></dl>
+        </div>
+      </div>
+      <div class="card mt">
+        <table class="simple">
+          <thead><tr><th>Cửa sổ</th><th>Điều hướng</th><th>Bố cục màn hình</th></tr></thead>
+          <tbody>
+            <tr><td>Phone dọc (&lt; 600dp rộng)</td><td>Bottom bar nổi</td><td>1 cột như thiết kế; &lt; 360dp gutter hẹp lại, hàng chật thì xếp chồng</td></tr>
+            <tr><td>Phone ngang (&lt; 480dp cao)</td><td>Side rail</td><td>2 pane (ảnh · chi tiết, tóm tắt · danh sách) nếu rộng ≥ 560dp; footer co còn 1 hàng</td></tr>
+            <tr><td>Tablet dọc (600–839dp)</td><td>Side rail</td><td>1 cột căn giữa, tối đa 640dp (<code>VfContentWidth.Column</code>)</td></tr>
+            <tr><td>Tablet ngang, desktop (≥ 840dp)</td><td>Side rail</td><td>2 pane, tối đa 1180dp (<code>VfContentWidth.TwoPane</code>)</td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:13.5px;color:var(--muted);margin:10px 0 0">Bên trong màn hình còn có: <code>AdaptiveGrid</code> (số cột theo bề rộng), <code>ScaleDownToFit</code> (collage đăng nhập), <code>proportionalHeight</code> (ảnh không bị thành dải mỏng), <code>withFontScale()</code> (breakpoint theo cỡ chữ hệ thống).</p>
+      </div>
+    </section>
+
+    <!-- 7. BUILD -->
+    <section class="panel" id="p-build" role="tabpanel">
+      <h2 class="sec-h">Module Gradle, target &amp; test</h2>
+      <p class="hint">Ba module “vỏ” mỏng phụ thuộc vào một thư viện KMP <code>:composeApp</code>. Bấm vào thẻ test để xem từng test case.</p>
+      <div class="mod">
+        <div class="card" data-go="androidApp" style="cursor:pointer"><h3>:androidApp</h3><div class="k">com.android.application</div><p style="margin:6px 0 0;font-size:13.5px">MainActivity · minSdk 24 · targetSdk 36</p></div>
+        <div class="card" data-go="iosApp" style="cursor:pointer"><h3>iosApp (Xcode)</h3><div class="k">SwiftUI + ComposeApp.framework</div><p style="margin:6px 0 0;font-size:13.5px">embedAndSignAppleFrameworkForXcode</p></div>
+        <div class="card" data-go="desktopApp" style="cursor:pointer"><h3>:desktopApp</h3><div class="k">kotlin.jvm + compose desktop</div><p style="margin:6px 0 0;font-size:13.5px">Window 390×844 · Dmg/Msi/Deb</p></div>
+      </div>
+      <div class="flowdown">↓ implementation(projects.composeApp) / framework ↓</div>
+      <div class="card">
+        <h3 style="font-size:20px">:composeApp <span class="pill">kotlin.multiplatform · android.kotlin.multiplatform.library · compose</span></h3>
+        <table class="simple mt">
+          <thead><tr><th>Source set</th><th>Nội dung</th><th>Dependency riêng</th></tr></thead>
+          <tbody>
+            <tr><td><code>commonMain</code></td><td>Toàn bộ app: core, domain, data, di, presentation + composeResources (4 ảnh món ăn, 8 font)</td><td>compose runtime/foundation/material3/ui/resources, lifecycle-viewmodel/runtime-compose, navigation-compose, coroutines, datetime, serialization</td></tr>
+            <tr><td><code>iosMain</code></td><td><code>MainViewController()</code> (iosArm64, iosSimulatorArm64 → static framework “ComposeApp”)</td><td>—</td></tr>
+            <tr><td><code>androidMain</code></td><td>(không có code)</td><td>activity-compose</td></tr>
+            <tr><td><code>jvmMain</code></td><td>(không có code)</td><td>coroutines-swing</td></tr>
+            <tr><td><code>commonTest</code></td><td>Unit + flow test ViewModel</td><td>kotlin-test, coroutines-test</td></tr>
+            <tr><td><code>jvmTest</code></td><td>Compose UI test, screenshot test</td><td>compose.desktop.currentOs, compose ui-test</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card mt">
+        <h3 style="font-size:18px">Phiên bản chính (gradle/libs.versions.toml)</h3>
+        <div class="chips" style="margin-top:8px">
+          <span class="pill">Kotlin 2.4.20</span><span class="pill">Compose MP 1.12.1</span><span class="pill">Material3 1.9.0</span><span class="pill">AGP 9.4.1</span><span class="pill">Lifecycle 2.11.0</span><span class="pill">Navigation 2.9.2</span><span class="pill">Coroutines 1.11.0</span><span class="pill">Datetime 0.8.0</span><span class="pill">Serialization 1.11.0</span>
+        </div>
+      </div>
+      <h3 class="mt" style="font-size:20px">Test (bấm để xem chi tiết)</h3>
+      <div class="grid3 tests mt" id="testCards"></div>
+      <div class="card mt">
+        <h3 style="font-size:18px">Lệnh chạy</h3>
+        <div class="code"><div class="code-h"><span>terminal</span></div><pre><code>./gradlew :androidApp:installDebug     # Android
+./gradlew :desktopApp:run              # Desktop preview
+./gradlew :composeApp:jvmTest          # unit + flow + screenshot + e2e
+# iOS: mở iosApp/iosApp.xcodeproj rồi Run</code></pre></div>
+        <p style="font-size:13.5px;color:var(--muted);margin:10px 0 0">Demo login: <code>an@visionfit.vn</code> / <code>visionfit123</code> · <code>locked@visionfit.vn</code> để xem lỗi tài khoản bị khoá.</p>
+      </div>
+    </section>
+  </div>
+
+  <aside class="card detail" id="detail" aria-live="polite">
+    <div class="d-head"><div class="crumbs" id="crumbs"></div><button class="btn x" id="detailClose" type="button" aria-label="Đóng">✕</button></div>
+    <div class="detail-inner" id="detailBody"></div>
+  </aside>
+</main>
+<div class="scrim" id="scrim"></div>
+
+<!-- ================= CODE SNIPPETS (trích nguyên văn từ repo) ================= -->
+<script type="text/plain" id="k-android" data-title="androidApp/.../MainActivity.kt">class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
+        super.onCreate(savedInstanceState)
+        setContent {
+            VisionFitApp()
+        }
+    }
+}</script>
+<script type="text/plain" id="k-ios" data-title="iosApp/ContentView.swift + iosMain/MainViewController.kt">struct ComposeView: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> UIViewController {
+        MainViewControllerKt.MainViewController()
+    }
+    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
+}
+
+// composeApp/src/iosMain/kotlin/com/visionfit/MainViewController.kt
+fun MainViewController() = ComposeUIViewController { VisionFitApp() }</script>
+<script type="text/plain" id="k-desktop" data-title="desktopApp/.../main.kt">fun main() = application {
+    Window(
+        onCloseRequest = ::exitApplication,
+        title = "VisionFit",
+        // Phone-sized window that matches the 390 × 844 design frames.
+        state = rememberWindowState(size = DpSize(390.dp, 844.dp)),
+    ) {
+        VisionFitApp()
+    }
+}</script>
+<script type="text/plain" id="k-app" data-title="composeApp/.../App.kt">@Composable
+fun VisionFitApp(container: AppContainer = AppGraph.container) {
+    VisionFitTheme {
+        val snackbarHostState = remember { SnackbarHostState() }
+        val scope = rememberCoroutineScope()
+        val messenger = remember(snackbarHostState, scope) { AppMessenger(snackbarHostState, scope) }
+        CompositionLocalProvider(
+            LocalAppContainer provides container,
+            LocalAppMessenger provides messenger,
+        ) {
+            ProvideWindowLayout {
+                Box(Modifier.fillMaxSize()) {
+                    VisionFitNavHost()
+                    VfSnackbarHost(hostState = snackbarHostState, /* ... */)
+                }
+            }
+        }
+    }
+}
+
+object AppGraph {
+    val container: AppContainer by lazy { AppContainer() }
+}</script>
+<script type="text/plain" id="k-routes" data-title="presentation/navigation/Routes.kt">/** Type-safe destinations. Arguments travel as constructor properties. */
+@Serializable data object AuthDestination
+@Serializable data class OnboardingDestination(val isEditing: Boolean = false)
+@Serializable data object GoalDestination
+@Serializable data object DashboardDestination
+@Serializable data object HistoryDestination
+@Serializable data object CameraDestination
+@Serializable data class AnalysisDestination(val jobId: String)
+@Serializable data class ReviewDestination(val jobId: String, val manualEntry: Boolean = false)</script>
+<script type="text/plain" id="k-navhelpers" data-title="presentation/navigation/VisionFitNavHost.kt">/** Returns to an existing Dashboard, or makes it the only screen (after sign-in / onboarding). */
+private fun NavController.navigateToDashboard() {
+    if (!popBackStack<DashboardDestination>(inclusive = false)) {
+        navigate(DashboardDestination) {
+            popUpTo(graph.id) { inclusive = true }
+            launchSingleTop = true
+        }
+    }
+}
+
+/** Bottom-bar style navigation: one copy per tab, Dashboard stays underneath. */
+private fun NavController.navigateToTab(route: Any) {
+    navigate(route) {
+        popUpTo<DashboardDestination> { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+}</script>
+<script type="text/plain" id="k-route-pattern" data-title="presentation/dashboard/DashboardScreen.kt">@Composable
+fun DashboardRoute(
+    onNavigateToHistory: () -> Unit,
+    onNavigateToCamera: () -> Unit,
+    /* ... */
+    viewModel: DashboardViewModel = containerViewModel {
+        DashboardViewModel(
+            authRepository = authRepository,
+            profileRepository = profileRepository,
+            mealRepository = mealRepository,
+            networkMonitor = networkMonitor,
+            timeProvider = timeProvider,
+            calculateTarget = calculateNutritionTarget,
+            summarizeDay = summarizeDay,
+            calculateStreak = calculateStreak,
+        )
+    },
+) {
+    val state = viewModel.state.collectAsStateWithLifecycle().value
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            DashboardEffect.NavigateToHistory -> onNavigateToHistory()
+            DashboardEffect.NavigateToCamera -> onNavigateToCamera()
+            /* ... */
+        }
+    }
+    DashboardScreen(state = state, onEvent = viewModel::onEvent)
+}</script>
+<script type="text/plain" id="k-common" data-title="presentation/common/ViewModelFactory.kt + AppMessenger.kt">@Composable
+inline fun <reified VM : ViewModel> containerViewModel(
+    key: String? = null,
+    crossinline create: AppContainer.() -> VM,
+): VM {
+    val container = LocalAppContainer.current
+    return viewModel(key = key) { container.create() }
+}
+
+@Stable
+class AppMessenger(val hostState: SnackbarHostState, private val scope: CoroutineScope) {
+    fun show(message: String, actionLabel: String? = null, onAction: () -> Unit = {}) {
+        scope.launch {
+            hostState.currentSnackbarData?.dismiss()
+            val result = hostState.showSnackbar(message = message, actionLabel = actionLabel, /* ... */)
+            if (result == SnackbarResult.ActionPerformed) onAction()
+        }
+    }
+}</script>
+<script type="text/plain" id="k-mvi" data-title="core/mvi/MviViewModel.kt">abstract class MviViewModel<State, Event, Effect>(initialState: State) : ViewModel() {
+
+    private val _state = MutableStateFlow(initialState)
+    val state: StateFlow<State> = _state.asStateFlow()
+
+    private val _effects = Channel<Effect>(Channel.BUFFERED)
+    val effects: Flow<Effect> = _effects.receiveAsFlow()
+
+    protected val currentState: State
+        get() = _state.value
+
+    abstract fun onEvent(event: Event)
+
+    protected fun updateState(reducer: State.() -> State) {
+        _state.update(reducer)
+    }
+
+    protected fun sendEffect(effect: Effect) {
+        viewModelScope.launch { _effects.send(effect) }
+    }
+}</script>
+<script type="text/plain" id="k-collect" data-title="core/mvi/CollectEffects.kt">@Composable
+fun <T> CollectEffects(effects: Flow<T>, onEffect: (T) -> Unit) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val latestOnEffect by rememberUpdatedState(onEffect)
+    LaunchedEffect(effects, lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            withContext(Dispatchers.Main.immediate) {
+                effects.collect { latestOnEffect(it) }
+            }
+        }
+    }
+}</script>
+<script type="text/plain" id="k-time" data-title="core/time/TimeProvider.kt">/** Injectable clock so that "today", greetings and meal types are testable. */
+interface TimeProvider {
+    fun now(): LocalDateTime
+    fun today(): LocalDate = now().date
+}
+
+class SystemTimeProvider(private val timeZone: TimeZone = TimeZone.currentSystemDefault()) : TimeProvider {
+    override fun now(): LocalDateTime = Clock.System.now().toLocalDateTime(timeZone)
+}
+
+class FixedTimeProvider(private val fixed: LocalDateTime) : TimeProvider {
+    override fun now(): LocalDateTime = fixed
+}</script>
+<script type="text/plain" id="k-format" data-title="core/format/VnFormat.kt">/** 2034 → "2.034", -500 → "−500". */
+fun thousands(value: Int): String {
+    val grouped = abs(value.toLong()).toString()
+        .reversed()
+        .chunked(3)
+        .joinToString(".")
+        .reversed()
+    return if (value < 0) "$MINUS$grouped" else grouped
+}</script>
+<script type="text/plain" id="k-di" data-title="di/AppContainer.kt">class AppContainer(
+    val timeProvider: TimeProvider = SystemTimeProvider(),
+    /** Outlives every screen, so analysis jobs keep running in the background. */
+    applicationScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
+) {
+    private val store = InMemoryVisionFitStore(timeProvider)
+
+    val authRepository: AuthRepository = MockAuthRepository(store)
+    val profileRepository: ProfileRepository = MockProfileRepository(store)
+    val mealRepository: MealRepository = MockMealRepository(store)
+    val mealAnalysisRepository: MealAnalysisRepository = MockMealAnalysisRepository(store, applicationScope)
+    val networkMonitor: NetworkMonitor = MockNetworkMonitor(timeProvider)
+    val cameraSource: CameraSource = MockCameraSource()
+
+    val calculateNutritionTarget = CalculateNutritionTargetUseCase()
+    val summarizeDay = SummarizeDayUseCase()
+    val calculateStreak = CalculateStreakUseCase()
+    val validateCredentials = ValidateCredentialsUseCase()
+}
+
+val LocalAppContainer = staticCompositionLocalOf<AppContainer> {
+    error("AppContainer not provided. Wrap the UI in VisionFitApp().")
+}</script>
+<script type="text/plain" id="k-model-meal" data-title="domain/model/Meal.kt">data class FoodItem(
+    val id: String,
+    val name: String,
+    val grams: Int,
+    val per100g: NutrientsPer100g,
+    val confidence: Int?,          // null = người dùng tự thêm
+) {
+    val kcal: Int get() = (grams * per100g.kcal / 100).roundToInt()
+    val isManual: Boolean get() = confidence == null
+}
+
+/** A row in the meal diary: either confirmed by the user or still going through AI analysis. */
+sealed interface MealEntry {
+    val id: String
+    val type: MealType
+    val loggedAt: LocalDateTime
+    val photo: MealPhoto?
+}
+
+data class ConfirmedMeal(/* ... */ val title: String, val items: List<FoodItem>, val isEdited: Boolean) : MealEntry
+data class PendingMeal(/* ... */ val jobId: String, val status: PendingStatus) : MealEntry
+
+enum class PendingStatus { ANALYZING, WAITING_FOR_NETWORK, READY_FOR_REVIEW, FAILED }</script>
+<script type="text/plain" id="k-model-analysis" data-title="domain/model/Analysis.kt">enum class AnalysisStage {
+    RECOGNIZING, CALCULATING, COMPLETED, FAILED;
+    val isTerminal: Boolean get() = this == COMPLETED || this == FAILED
+}
+
+data class AnalysisJob(
+    val id: String,
+    val mealType: MealType,
+    val capturedAt: LocalDateTime,
+    val photo: MealPhoto,
+    val photoSizeBytes: Long,
+    val stage: AnalysisStage,
+    val timings: AnalysisTimings,
+    val detections: List<DetectedFood> = emptyList(),
+    val failure: AnalysisFailure? = null,
+) {
+    val totalKcal: Int get() = detections.sumOf { it.item.kcal }
+}</script>
+<script type="text/plain" id="k-repos" data-title="domain/repository/Repositories.kt">interface MealRepository {
+    fun observeDay(date: LocalDate): Flow<DayLog>
+    fun observeRange(from: LocalDate, to: LocalDate): Flow<List<DayLog>>
+    suspend fun saveMeal(
+        jobId: String?, type: MealType, loggedAt: LocalDateTime,
+        photo: MealPhoto?, items: List<FoodItem>, isEdited: Boolean,
+    ): String
+}
+
+interface MealAnalysisRepository {
+    /** Uploads the photo and queues it for analysis. Returns the job id to observe. */
+    suspend fun submitPhoto(photo: MealPhoto, capturedAt: LocalDateTime): String
+    /** Emits `null` when no job with [jobId] exists. */
+    fun observeJob(jobId: String): Flow<AnalysisJob?>
+    suspend fun retry(jobId: String)
+}</script>
+<script type="text/plain" id="k-uc-target" data-title="domain/usecase/CalculateNutritionTargetUseCase.kt">operator fun invoke(profile: BodyProfile): NutritionTarget {
+    val sexConstant = if (profile.sex == Sex.MALE) 5 else -161
+    val bmr = 10.0 * profile.weightKg + 6.25 * profile.heightCm - 5.0 * profile.ageYears + sexConstant
+    val tdee = bmr * profile.activityLevel.multiplier
+    val adjustment = profile.goal.dailyAdjustmentKcal
+    val dailyKcal = (tdee + adjustment).roundToInt()
+
+    val proteinG = (PROTEIN_G_PER_KG * profile.weightKg).roundToInt()
+    val fatG = (dailyKcal * FAT_ENERGY_SHARE / MacroTargets.KCAL_PER_G_FAT).toInt()
+    val carbsKcal = dailyKcal - proteinG * 4 - fatG * 9
+    val carbsG = (carbsKcal / 4.0).toInt().coerceAtLeast(0)
+    /* ... */
+}</script>
+<script type="text/plain" id="k-uc-summary" data-title="domain/usecase/SummarizeDayUseCase.kt">/** Totals only confirmed meals: dishes still being analyzed have no trusted numbers yet. */
+class SummarizeDayUseCase {
+    operator fun invoke(day: DayLog, target: NutritionTarget): DaySummary { /* ... */ }
+
+    fun status(day: DayLog, target: NutritionTarget): DayStatus {
+        val summary = invoke(day, target)
+        return when {
+            !summary.hasData -> DayStatus.NO_DATA
+            summary.isOverTarget -> DayStatus.OVER_TARGET
+            else -> DayStatus.WITHIN_TARGET
+        }
+    }
+}</script>
+<script type="text/plain" id="k-uc-streak" data-title="domain/usecase/CalculateStreakUseCase.kt">operator fun invoke(days: List<DayLog>, today: LocalDate): Int {
+    val loggedDates = days.filter { it.confirmedMeals.isNotEmpty() }.map { it.date }.toSet()
+    var streak = 0
+    var date = today.minus(1, DateTimeUnit.DAY)
+    while (date in loggedDates) {
+        streak++
+        date = date.minus(1, DateTimeUnit.DAY)
+    }
+    return streak
+}</script>
+<script type="text/plain" id="k-uc-validate" data-title="domain/usecase/ValidateCredentialsUseCase.kt">operator fun invoke(email: String, password: String, confirmation: String? = null): CredentialValidation {
+    val trimmedEmail = email.trim()
+    return CredentialValidation(
+        email = when {
+            trimmedEmail.isEmpty() -> CredentialError.EMAIL_BLANK
+            !EMAIL_REGEX.matches(trimmedEmail) -> CredentialError.EMAIL_INVALID
+            else -> null
+        },
+        password = when {
+            password.isEmpty() -> CredentialError.PASSWORD_BLANK
+            password.length < MIN_PASSWORD_LENGTH -> CredentialError.PASSWORD_TOO_SHORT   // 8
+            else -> null
+        },
+        confirmation = when {
+            confirmation == null -> null
+            confirmation != password -> CredentialError.CONFIRMATION_MISMATCH
+            else -> null
+        },
+    )
+}</script>
+<script type="text/plain" id="k-mock-analysis" data-title="data/repository/MockMealAnalysisRepository.kt">private fun startSimulation(jobId: String) {
+    if (running[jobId]?.isActive == true) return
+    running[jobId] = scope.launch {                       // applicationScope, không phải viewModelScope
+        delay(stageMillis)                                // 3.5s
+        if (failOnNextRun.remove(jobId) || store.aiResults.value[jobId].isNullOrEmpty()) {
+            updateJob(jobId) { it.copy(stage = AnalysisStage.FAILED, failure = /* ... */) }
+            updatePendingStatus(jobId, PendingStatus.FAILED)
+            return@launch
+        }
+        val detections = store.aiResults.value[jobId].orEmpty()
+        updateJob(jobId) { it.copy(stage = AnalysisStage.CALCULATING, detections = detections, /* ... */) }
+        delay(stageMillis)
+        updateJob(jobId) { it.copy(stage = AnalysisStage.COMPLETED, /* ... */) }
+        updatePendingStatus(jobId, PendingStatus.READY_FOR_REVIEW)
+    }
+}</script>
+<script type="text/plain" id="k-store" data-title="data/mock/InMemoryVisionFitStore.kt">/**
+ * The fake backend shared by every mock repository: one place holds meals, analysis jobs,
+ * the profile and accounts so the repositories stay consistent with each other.
+ */
+internal class InMemoryVisionFitStore(timeProvider: TimeProvider) {
+    val accounts = MutableStateFlow(listOf(/* an@visionfit.vn, locked@visionfit.vn */))
+    val profile = MutableStateFlow(BodyProfile.Default)
+    val meals: MutableStateFlow<List<MealEntry>>
+    val jobs: MutableStateFlow<Map<String, AnalysisJob>>
+    /** The answer the mock AI will give for each job once it finishes. */
+    val aiResults = MutableStateFlow<Map<String, List<DetectedFood>>>(emptyMap())
+
+    init {
+        val seed = Seed(timeProvider.today())   // dữ liệu mẫu tính tương đối theo "hôm nay"
+        meals = MutableStateFlow(seed.meals())
+        jobs = MutableStateFlow(seed.jobs().associateBy { it.id })
+        /* ... */
+    }
+}</script>
+<script type="text/plain" id="k-meal-mock" data-title="data/repository/MockMealRepository.kt">override fun observeDay(date: LocalDate): Flow<DayLog> =
+    store.meals
+        .map { meals -> dayLog(date, meals) }
+        .distinctUntilChanged()
+
+override suspend fun saveMeal(jobId: String?, /* ... */ items: List<FoodItem>, isEdited: Boolean): String {
+    require(items.isNotEmpty()) { "A meal needs at least one dish" }
+    delay(latencyMillis)
+    val meal = ConfirmedMeal(/* ... */ title = mealTitleFor(items), items = items, isEdited = isEdited)
+    store.meals.update { meals ->
+        meals.filterNot { it is PendingMeal && it.jobId == jobId } + meal
+    }
+    return meal.id
+}</script>
+<script type="text/plain" id="k-window" data-title="designsystem/layout/WindowLayout.kt">@Immutable
+data class WindowLayout(val width: Dp, val height: Dp) {
+    val widthClass = when { width < 600.dp -> COMPACT; width < 840.dp -> MEDIUM; else -> EXPANDED }
+    val heightClass = when { height < 480.dp -> COMPACT; height < 900.dp -> MEDIUM; else -> EXPANDED }
+    val isNarrow: Boolean get() = width < 360.dp
+    val isShort: Boolean get() = heightClass == HeightClass.COMPACT
+    val usesNavigationRail: Boolean get() = widthClass != WidthClass.COMPACT || isShort
+    val usesTwoPanes: Boolean get() = widthClass == WidthClass.EXPANDED || (isShort && width >= 560.dp)
+    val gutter: Dp get() = when {
+        isNarrow -> 16.dp
+        widthClass == WidthClass.COMPACT || isShort -> 20.dp
+        widthClass == WidthClass.MEDIUM -> 28.dp
+        else -> 32.dp
+    }
+}</script>
+<!-- MVI steps -->
+<script type="text/plain" id="k-s1" data-title="review/ReviewScreen.kt">VfPrimaryButton(
+    text = "Xác nhận & lưu",
+    onClick = { onEvent(ReviewEvent.Save) },
+    leadingIcon = if (layout.isNarrow) null else VfIcons.Check,
+    /* ... */
+)</script>
+<script type="text/plain" id="k-s2" data-title="review/ReviewViewModel.kt">override fun onEvent(event: ReviewEvent) {
+    when (event) {
+        /* ... */
+        ReviewEvent.Save -> save()
+    }
+}
+
+private fun save() {
+    val state = currentState
+    if (state.isSaving) return
+    val issue = validate(state)               // NO_ITEMS / MISSING_NAME / MISSING_WEIGHT
+    if (issue != null) {
+        val (kind, invalid) = issue
+        updateState { copy(invalidItemIds = invalid) }
+        sendEffect(ReviewEffect.ShowIssue(kind, itemNumber = /* ... */))
+        return
+    }
+    /* ... */
+}</script>
+<script type="text/plain" id="k-s3" data-title="review/ReviewViewModel.kt">updateState { copy(isSaving = true) }     // nút chuyển sang trạng thái loading</script>
+<script type="text/plain" id="k-s4" data-title="review/ReviewViewModel.kt">viewModelScope.launch {
+    try {
+        mealRepository.saveMeal(
+            jobId = jobId,
+            type = state.mealType,
+            loggedAt = loggedAt,
+            photo = state.photo,
+            items = state.items.map { it.toFoodItem() },
+            isEdited = isEdited(state.items),
+        )
+        /* ... */
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (error: Exception) {
+        sendEffect(ReviewEffect.SaveFailed)
+    } finally {
+        updateState { copy(isSaving = false) }
+    }
+}</script>
+<script type="text/plain" id="k-s5" data-title="data/repository/MockMealRepository.kt">store.meals.update { meals ->
+    meals.filterNot { it is PendingMeal && it.jobId == jobId } + meal
+}</script>
+<script type="text/plain" id="k-s6" data-title="review/ReviewViewModel.kt (init)">val target = profileRepository.profile.map(calculateTarget::invoke)
+combine(mealRepository.observeDay(job.capturedAt.date), target) { day, dailyTarget ->
+    summarizeDay(day, dailyTarget).remainingKcal
+}
+    .onEach { remaining -> updateState { copy(remainingBeforeKcal = remaining) } }
+    .launchIn(viewModelScope)
+
+// DashboardViewModel & HistoryViewModel (vẫn sống trong back stack) cũng combine
+// từ mealRepository.observeRange / observeDay → tự tính lại DaySummary.</script>
+<script type="text/plain" id="k-s7" data-title="core/mvi/MviViewModel.kt">protected fun updateState(reducer: State.() -> State) {
+    _state.update(reducer)        // MutableStateFlow.update: atomic compare-and-set
+}</script>
+<script type="text/plain" id="k-s8" data-title="review/ReviewScreen.kt (ReviewRoute)">val state = viewModel.state.collectAsStateWithLifecycle().value
+/* ... */
+ReviewScreen(state = state, onEvent = viewModel::onEvent)</script>
+<script type="text/plain" id="k-s9" data-title="review/ReviewViewModel.kt">sendEffect(ReviewEffect.MealSaved(state.mealType, state.totalKcal))
+
+// MviViewModel
+protected fun sendEffect(effect: Effect) {
+    viewModelScope.launch { _effects.send(effect) }
+}</script>
+<script type="text/plain" id="k-s10" data-title="core/mvi/CollectEffects.kt">lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+    withContext(Dispatchers.Main.immediate) {
+        effects.collect { latestOnEffect(it) }
+    }
+}</script>
+<script type="text/plain" id="k-s11" data-title="review/ReviewScreen.kt + navigation/VisionFitNavHost.kt">CollectEffects(viewModel.effects) { effect ->
+    when (effect) {
+        is ReviewEffect.MealSaved -> {
+            messenger.show("Đã lưu ${effect.mealType.label.lowercase()} · ${VnFormat.thousands(effect.totalKcal)} kcal")
+            onNavigateToDashboard()
+        }
+        /* ... */
+    }
+}
+
+// NavHost
+composable<ReviewDestination> { entry ->
+    ReviewRoute(/* ... */ onNavigateToDashboard = { navController.navigateToDashboard() })
+}</script>
+
+<script>
+"use strict";
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const SVGNS = "http://www.w3.org/2000/svg";
+function svgEl(tag, attrs = {}, parent) {
+  const e = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+
+/* ---------- Kotlin/Swift highlighter ---------- */
+const HL_RE = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|("(?:[^"\\\n]|\\.)*")|(@[A-Za-z]+)|\b(fun|val|var|class|interface|object|data|sealed|enum|override|private|internal|protected|abstract|suspend|return|if|else|when|is|in|init|companion|const|by|lazy|try|catch|finally|throw|true|false|null|this|struct|func|some|inline|reified|crossinline|operator|get)\b|\b([A-Z][A-Za-z0-9_]*)\b|\b(\d[\d_.]*)\b/g;
+function hl(src) {
+  let out = "", last = 0, m;
+  HL_RE.lastIndex = 0;
+  while ((m = HL_RE.exec(src))) {
+    out += esc(src.slice(last, m.index));
+    const t = esc(m[0]);
+    const cls = m[1] ? "c" : m[2] ? "s" : m[3] ? "a" : m[4] ? "k" : m[5] ? "t" : "n";
+    out += `<span class="${cls}">${t}</span>`;
+    last = HL_RE.lastIndex;
+  }
+  return out + esc(src.slice(last));
+}
+function codeBlock(ref) {
+  const el = document.getElementById(ref);
+  if (!el) return "";
+  const src = el.textContent.replace(/^\n+|\s+$/g, "");
+  return `<div class="code"><div class="code-h"><span>${esc(el.dataset.title || "")}</span><button type="button" data-copy="${ref}">copy</button></div><pre><code>${hl(src)}</code></pre></div>`;
+}
+
+/* ---------- Layer meta ---------- */
+const LAYER = {
+  platform: "Platform shell", root: "App root", pres: "Presentation", domain: "Domain",
+  data: "Data", core: "Core", di: "DI", test: "Test",
+};
+const chipsHtml = ids => `<div class="rel">${ids.map(id => `<button class="chip" type="button" data-go="${id}">${esc(titleOf(id))}</button>`).join("")}</div>`;
+const ul = items => `<ul>${items.map(i => `<li>${i}</li>`).join("")}</ul>`;
+const kv = pairs => `<dl class="kv">${pairs.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>`;
+const goTab = (tab, label) => `<button class="btn yellow" type="button" data-tab-go="${tab}" style="margin-top:12px">${label}</button>`;
+
+/* ---------- Screens (8 features) ---------- */
+const SCREENS = {
+  "scr-auth": {
+    n: "01", name: "Auth", vi: "Đăng nhập / Đăng ký", pkg: "presentation/auth", loc: 1056, x: 110, y: 90,
+    dest: "AuthDestination  (startDestination)", deps: ["r-auth", "u-validate"], args: "",
+    state: ["mode: AuthMode (LOGIN | REGISTER)", "email, password, confirmPassword", "isPasswordVisible", "emailError / passwordError / confirmPasswordError: CredentialError?", "submitError: AuthError?", "isSubmitting, isSendingReset"],
+    events: ["ModeSelected(mode)", "EmailChanged / PasswordChanged / ConfirmPasswordChanged", "TogglePasswordVisibility", "Submit", "ForgotPassword", "LegalLinkClicked(document)"],
+    effects: ["NavigateToDashboard", "NavigateToOnboarding", "OpenUrl(url)", "ResetLinkSent(email) → snackbar", "ResetLinkFailed → snackbar"],
+    comps: ["<code>AuthHero</code> — collage minh hoạ, co lại bằng <code>ScaleDownToFit</code>", "<code>AuthForm</code> — <code>AuthModeSwitch</code>, <code>AuthTextField</code>"],
+    logic: "Submit: <code>ValidateCredentialsUseCase</code> kiểm tra cục bộ trước (email regex, mật khẩu ≥ 8 ký tự, xác nhận khớp khi đăng ký). Hợp lệ → <code>login</code>/<code>register</code>. Thành công: đăng ký → Onboarding, đăng nhập → Dashboard. Thất bại: <code>submitError</code> (INVALID_CREDENTIALS, ACCOUNT_LOCKED, …) hiển thị ngay trên form.",
+  },
+  "scr-onboarding": {
+    n: "02", name: "Onboarding", vi: "Chỉ số cơ thể", pkg: "presentation/onboarding", loc: 897, x: 370, y: 90,
+    dest: "OnboardingDestination(isEditing: Boolean = false)", deps: ["r-profile", "u-target"], args: "isEditing",
+    state: ["profile: BodyProfile", "target: NutritionTarget?  // ước tính sống ở footer", "isEditing: Boolean", "isSaving: Boolean", "fun canDecrease/canIncrease(metric)", "fun value(metric)"],
+    events: ["SexSelected(sex)", "MetricStepped(metric, delta)", "ActivitySelected(level)", "GoalSelected(goal)", "Submit", "Back"],
+    effects: ["NavigateToGoal", "NavigateBack"],
+    comps: ["<code>ChoiceCards</code> — giới tính, mức vận động, mục tiêu", "<code>MetricCards</code> — stepper tuổi/chiều cao/cân nặng (giới hạn theo <code>BodyProfile.*Range</code>)", "<code>TdeeFooter</code> — TDEE tính lại mỗi lần chỉnh"],
+    logic: "Mỗi lần chỉnh, <code>edit {}</code> cập nhật profile và tính lại <code>target</code> ngay bằng <code>CalculateNutritionTargetUseCase</code>. Submit → <code>saveProfile</code> → luôn đi tới Goal (cả khi mở từ tab Hồ sơ).",
+  },
+  "scr-goal": {
+    n: "03", name: "Goal", vi: "Mục tiêu dinh dưỡng", pkg: "presentation/goal", loc: 607, x: 630, y: 90,
+    dest: "GoalDestination", deps: ["r-profile", "u-target"], args: "",
+    state: ["target: NutritionTarget?", "isLoading = target == null"],
+    events: ["StartTracking", "EditProfile", "Back"],
+    effects: ["NavigateToDashboard", "NavigateToProfile", "NavigateBack"],
+    comps: ["<code>GoalCards</code> — kcal/ngày, BMR → TDEE → điều chỉnh, macro %", "<code>Confetti</code> — hiệu ứng chúc mừng"],
+    logic: "Quan sát <code>profileRepository.profile.map(calculateTarget)</code>. “Sửa hồ sơ”: nếu màn trước là Onboarding thì chỉ <code>popBackStack()</code>, ngược lại mở <code>Onboarding(isEditing = true)</code>.",
+  },
+  "scr-dashboard": {
+    n: "04", name: "Dashboard", vi: "Hôm nay", pkg: "presentation/dashboard", loc: 1338, x: 630, y: 290,
+    dest: "DashboardDestination", deps: ["r-auth", "r-profile", "r-meal", "r-network", "time", "u-target", "u-summary", "u-streak"], args: "",
+    state: ["isLoading, userName, initials", "today: LocalDate?, greeting: Greeting", "isOffline, lastSyncedAt: LocalTime?", "week: List<WeekDay>  // 7 ngày + DayStatus", "streakDays: Int", "summary: DaySummary?", "meals: List<MealEntry>  // mới nhất trước", "notificationCount  // số bữa đang chờ AI"],
+    events: ["NotificationsClicked", "SeeAllMealsClicked", "MealClicked(meal)", "CaptureClicked", "TabSelected(tab)"],
+    effects: ["NavigateToHistory / Camera / Goal / Profile", "NavigateToAnalysis(jobId)", "NavigateToReview(jobId)"],
+    comps: ["<code>DashboardHeader</code>, <code>WeekStrip</code>", "<code>EnergyCard</code> — vòng kcal (<code>ProgressRing</code>)", "<code>MacroBars</code>, <code>MealRows</code>", "<code>MainTabScaffold</code> — bottom bar hoặc rail"],
+    logic: "Trong <code>init</code>: <code>combine(session, profile→target, observeRange(60 ngày), connectivity)</code> → <code>buildState()</code>. Streak tính từ 60 ngày lịch sử. Bấm bữa đang chờ: <code>READY_FOR_REVIEW</code> → Review, còn lại → Analysis. Màn rộng dùng 2 pane (<code>usesTwoPanes</code>).",
+  },
+  "scr-camera": {
+    n: "05", name: "Camera", vi: "Chụp ảnh bữa ăn", pkg: "presentation/camera", loc: 790, x: 200, y: 470,
+    dest: "CameraDestination", deps: ["r-camera", "r-analysis", "time"], args: "",
+    state: ["mode: CaptureMode (CAMERA | LIBRARY)", "isFlashOn, lens: CameraLens", "previewFrame: MealPhoto?", "libraryPhotos, selectedLibraryPhoto, isLoadingLibrary", "mealType = MealType.forTime(now), time", "isSubmitting", "canSubmit (derived)"],
+    events: ["ModeSelected(mode)", "ToggleFlash", "SwitchLens", "ShutterClicked", "LibraryShortcutClicked", "LibraryPhotoSelected(photo)", "Close"],
+    effects: ["NavigateToAnalysis(jobId)", "NavigateBack", "SubmitFailed → snackbar"],
+    comps: ["<code>Viewfinder</code> — khung ngắm", "<code>CaptureControls</code> — <code>CaptureModeSwitch</code>, <code>CaptureButtonsRow</code>, <code>LibraryPicker</code>"],
+    logic: "Shutter: lấy ảnh (<code>capturePhoto()</code> hoặc ảnh thư viện đã chọn) → <code>submitPhoto(photo, now)</code> trả <code>jobId</code> → effect điều hướng. Camera bị gỡ khỏi back stack (<code>popUpTo&lt;Camera&gt; inclusive</code>) nên Back từ Analysis không quay lại máy ảnh.",
+  },
+  "scr-analysis": {
+    n: "06", name: "Analysis", vi: "Đang phân tích", pkg: "presentation/analysis", loc: 893, x: 480, y: 470,
+    dest: "AnalysisDestination(jobId: String)", deps: ["r-analysis"], args: "jobId",
+    state: ["isLoading, isMissing", "job: AnalysisJob?", "isRetrying", "stage / isWorking / failure (derived)", "steps: List<AnalysisStep>  // UPLOAD, QUEUE, RECOGNIZE, CALCULATE"],
+    events: ["Close", "BackToDashboard", "Later", "ReviewResult", "Retry", "ManualEntry"],
+    effects: ["NavigateToDashboard", "NavigateToReview(jobId, manualEntry)"],
+    comps: ["<code>AnalysisPhoto</code> — ảnh + marker vị trí món (<code>PhotoMarkersLayer</code>)", "<code>AnalysisSteps</code> — 4 bước với thời gian"],
+    logic: "ViewModel có key <code>\"analysis-$jobId\"</code>. Chỉ quan sát <code>observeJob(jobId)</code> rồi suy ra danh sách bước. Job chạy trong <code>applicationScope</code> nên rời màn hình (“Để sau”) không huỷ phân tích. FAILED → Retry hoặc Tự nhập món.",
+  },
+  "scr-review": {
+    n: "07", name: "Review", vi: "Review & chỉnh sửa", pkg: "presentation/review", loc: 1242, x: 790, y: 470,
+    dest: "ReviewDestination(jobId: String, manualEntry: Boolean = false)", deps: ["r-analysis", "r-meal", "r-profile", "u-target", "u-summary"], args: "jobId, manualEntry",
+    state: ["isLoading, isMissing, jobId, isManualEntry", "mealType, loggedAt, photo, detectedCount", "items: List<EditableFood>  // text thô, không format dưới con trỏ", "remainingBeforeKcal", "invalidItemIds: Set<String>", "isSaving", "totalKcal / totalMacros / remainingAfterKcal / isOverTarget / canSave"],
+    events: ["NameChanged / GramsChanged / KcalChanged(id, value)", "RemoveItem(id) / UndoRemove", "AddItem", "Save", "Retake", "Close"],
+    effects: ["MealSaved(mealType, totalKcal) → snackbar + về Dashboard", "NavigateToCamera / NavigateToDashboard", "ItemRemoved(name) → snackbar có Undo", "ShowIssue(issue, itemNumber)", "SaveFailed"],
+    comps: ["<code>FoodItemEditor</code> — tên, gram, kcal, độ tin cậy (&lt; 85% cảnh báo)", "<code>ReviewSummary</code> — tổng kcal, macro, còn lại trong ngày"],
+    logic: "Sửa gram → <code>withGrams</code> tính lại kcal theo per100g. Sửa kcal → <code>withKcal</code> suy ngược per100g để lần sửa gram sau vẫn tỉ lệ. Save: validate (NO_ITEMS / MISSING_NAME / MISSING_WEIGHT) → <code>saveMeal(jobId, …, isEdited)</code>; <code>isEdited</code> so với kết quả AI gốc.",
+  },
+  "scr-history": {
+    n: "08", name: "History", vi: "Nhật ký bữa ăn", pkg: "presentation/history", loc: 954, x: 890, y: 290,
+    dest: "HistoryDestination", deps: ["r-meal", "r-profile", "r-network", "time", "u-target", "u-summary"], args: "",
+    state: ["isLoading, today", "dates: List<LocalDate>  // 7 chip nhanh + ngày chọn từ lịch", "selectedDate, summary: DaySummary?", "meals: List<MealEntry>", "isOffline, isDatePickerVisible", "isToday (derived)"],
+    events: ["DateSelected(date)", "OpenDatePicker / DismissDatePicker / DatePicked(date)", "MealClicked(meal)", "CaptureClicked", "TabSelected(tab)"],
+    effects: ["NavigateToAnalysis(jobId) / NavigateToReview(jobId)", "NavigateToCamera / Dashboard / Goal / Profile"],
+    comps: ["<code>DayHeader</code> — chip ngày + tóm tắt", "<code>Timeline</code> — dòng thời gian bữa ăn, màu theo <code>MealType.colors()</code>"],
+    logic: "<code>selectedDateFlow.flatMapLatest { observeDay(it) }</code> + combine target + online. Ngày tương lai bị kẹp về hôm nay; ngày chọn từ lịch có thêm chip riêng ở cuối.",
+  },
+};
+const SCREEN_IDS = Object.keys(SCREENS);
+
+/* ---------- Detail registry ---------- */
+const D = {
+  androidApp: {
+    layer: "platform", title: "androidApp", path: ["androidApp/src/main/kotlin/com/visionfit/app/MainActivity.kt", "androidApp/build.gradle.kts"],
+    sum: "Vỏ Android mỏng: một <code>ComponentActivity</code> bật edge-to-edge rồi gọi <code>VisionFitApp()</code>. Không có logic nghiệp vụ.",
+    body: () => kv([["Plugin", "com.android.application"], ["applicationId", "com.visionfit.app"], ["SDK", "min 24 · target 36 · compile 37"], ["Phụ thuộc", "projects.composeApp, activity-compose"]]),
+    code: ["k-android"], uses: ["app"],
+  },
+  iosApp: {
+    layer: "platform", title: "iosApp", path: ["iosApp/iosApp/ContentView.swift", "composeApp/src/iosMain/kotlin/com/visionfit/MainViewController.kt"],
+    sum: "Project Xcode. SwiftUI bọc một <code>UIViewControllerRepresentable</code> gọi hàm Kotlin <code>MainViewController()</code> → <code>ComposeUIViewController { VisionFitApp() }</code>.",
+    body: () => kv([["Framework", "ComposeApp (static)"], ["Target", "iosArm64, iosSimulatorArm64"], ["Build", "<code>:composeApp:embedAndSignAppleFrameworkForXcode</code>"], ["Safe area", "<code>.ignoresSafeArea()</code> — Compose tự xử lý insets"]]),
+    code: ["k-ios"], uses: ["app"],
+  },
+  desktopApp: {
+    layer: "platform", title: "desktopApp", path: ["desktopApp/src/main/kotlin/com/visionfit/desktop/main.kt"],
+    sum: "Cửa sổ JVM cỡ điện thoại (390 × 844 dp, đúng frame thiết kế) để xem nhanh UI trên Windows/macOS mà không cần emulator.",
+    body: () => kv([["Plugin", "kotlin.jvm + org.jetbrains.compose"], ["Đóng gói", "Dmg, Msi, Deb"], ["Phụ thuộc", "projects.composeApp, compose.desktop.currentOs, coroutines-swing"]]),
+    code: ["k-desktop"], uses: ["app"],
+  },
+  app: {
+    layer: "root", title: "VisionFitApp · AppGraph", path: ["composeApp/src/commonMain/kotlin/com/visionfit/App.kt"],
+    sum: "Điểm vào chung cho cả 3 nền tảng. Dựng “khung” Compose: theme → các CompositionLocal (DI container, snackbar messenger, kích thước cửa sổ) → NavHost.",
+    body: () => `<h4>Cây composition gốc</h4><div class="tree">VisionFitTheme
+└─ CompositionLocalProvider(
+     LocalAppContainer  provides container,
+     LocalAppMessenger  provides messenger)
+   └─ ProvideWindowLayout          → LocalWindowLayout
+      └─ Box
+         ├─ VisionFitNavHost()     → 8 màn hình
+         └─ VfSnackbarHost         (cách đáy 96dp, né bottom bar)</div>
+      <h4>Vì sao có AppGraph?</h4>${ul(["<code>object AppGraph { val container by lazy { AppContainer() } }</code> — container sống suốt process.", "ViewModel sống sót qua xoay màn hình vẫn nói chuyện với <b>cùng</b> repository/store.", "Test truyền container riêng: <code>VisionFitApp(AppContainer(FixedTimeProvider(now)))</code> (AppFlowUiTest)."])}`,
+    code: ["k-app"], uses: ["navigation", "designsystem", "common", "di"], usedBy: ["androidApp", "iosApp", "desktopApp"],
+  },
+  navigation: {
+    layer: "pres", title: "navigation", path: ["presentation/navigation/Routes.kt", "presentation/navigation/VisionFitNavHost.kt"],
+    sum: "Navigation Compose kiểu type-safe: 8 destination <code>@Serializable</code>, tham số đi qua constructor (<code>jobId</code>, <code>isEditing</code>, <code>manualEntry</code>). NavHost nối callback của từng Route với <code>NavController</code>.",
+    body: () => `<h4>Luồng chính</h4>${ul(["Auth → (đăng ký) Onboarding → Goal → Dashboard; (đăng nhập) Dashboard", "Dashboard ↔ History qua bottom bar (<code>navigateToTab</code>)", "Camera → Analysis → Review → Dashboard (mỗi bước <code>popUpTo</code> màn trước)"])}
+      <h4>Hai helper quan trọng</h4>${ul(["<code>navigateToDashboard()</code>: quay về Dashboard đang có, hoặc biến nó thành màn duy nhất (sau đăng nhập/onboarding).", "<code>navigateToTab()</code>: mỗi tab một bản, Dashboard luôn nằm dưới, có save/restore state."])}
+      <h4>Hiệu ứng</h4><p>fadeIn 220ms / fadeOut 180ms cho mọi chuyển cảnh.</p>${goTab("nav", "Mở bản đồ điều hướng &amp; mô phỏng back stack →")}`,
+    code: ["k-routes", "k-navhelpers"], uses: ["features"], usedBy: ["app"],
+  },
+  features: {
+    layer: "pres", title: "8 feature screens", path: ["presentation/<feature>/"],
+    sum: "Mỗi màn hình là một package cùng một khuôn. ~7.8k dòng — phần lớn code của app.",
+    body: () => `<h4>Giải phẫu một feature</h4><div class="anat">
+        <div><b>XxxContract.kt</b>UiState (data class), Event (sealed interface), Effect (sealed interface)</div>
+        <div><b>XxxViewModel.kt</b>extends <code>MviViewModel&lt;S,E,F&gt;</code>; nhận repository/use case qua constructor</div>
+        <div><b>XxxScreen.kt</b><code>XxxRoute</code> (có state) + <code>XxxScreen</code> (không state) + <code>@Preview</code></div>
+        <div><b>components/</b>Composable riêng của màn, không dùng lại ở nơi khác</div></div>
+      <h4>8 màn hình</h4>${chipsHtml(SCREEN_IDS)}${goTab("mvi", "Xem vòng MVI từng bước →")}`,
+    code: ["k-route-pattern"], uses: ["mvi", "common", "designsystem", "model", "repoIf", "usecase", "time", "format"], usedBy: ["navigation", "preview"],
+  },
+  common: {
+    layer: "pres", title: "common", path: ["presentation/common/"],
+    sum: "Tiện ích dùng chung giữa các feature: tạo ViewModel từ container, snackbar toàn app, và ánh xạ enum domain → chữ/màu/icon tiếng Việt.",
+    body: () => ul(["<code>containerViewModel { }</code> — lấy <code>LocalAppContainer</code>, gọi <code>viewModel(key)</code> → ViewModel gắn với NavBackStackEntry.", "<code>AppMessenger</code> — snackbar chạy trong scope gốc nên “Đã lưu bữa ăn” vẫn hiện sau khi điều hướng.", "<code>MealTypeUi</code> — <code>MealType.label</code>, <code>MealType.colors()</code>.", "<code>PendingStatusUi</code> — câu chữ cho từng trạng thái + <code>effective(isOffline)</code>.", "<code>ProfileUi</code> — nhãn Sex/FitnessGoal, icon xu hướng."]) + `<p style="font-size:13.5px;color:var(--muted)">Chữ hiển thị nằm ở presentation, nhờ đó domain giữ thuần Kotlin.</p>`,
+    code: ["k-common"], uses: ["di", "designsystem", "model"], usedBy: ["app", "features"],
+  },
+  designsystem: {
+    layer: "pres", title: "designsystem", path: ["presentation/designsystem/{theme,components,layout,icons}"],
+    sum: "Bộ design system “neo-brutalist vui nhộn”: viền mực 2dp, bóng đổ cứng lệch, màu phẳng đậm. ~2.3k dòng.",
+    body: () => `<h4>4 phần</h4>${chipsHtml(["ds-theme", "ds-components", "ds-layout", "ds-icons"])}<h4>Bảng màu chính</h4>${swatches()}`,
+    uses: ["model"], usedBy: ["app", "features", "common"],
+  },
+  "ds-theme": {
+    layer: "pres", title: "designsystem/theme", path: ["Color.kt · Type.kt · Dimens.kt · Theme.kt"],
+    sum: "Token thiết kế, truy cập qua <code>VisionFitTheme.colors</code> và <code>VisionFitTheme.type</code> (CompositionLocal riêng, không dùng MaterialTheme làm nguồn chính).",
+    body: () => ul(["<code>VisionFitColors</code> — ~50 màu: ink, primary tím, yellow, coral, mint, sky, pink + container/text; <code>dishMarkers</code> đánh số món.", "<code>VisionFitTypography</code> — <b>Baloo 2</b> cho số &amp; tiêu đề, <b>Be Vietnam Pro</b> cho nội dung (font nằm trong composeResources).", "<code>VfDimens</code> — Border 2dp, Shadow 2–6dp, CtaHeight 58dp, BottomBarClearance 120dp.", "<code>VfRadius</code> — 10dp → 32dp."]) + swatches(),
+    uses: [], usedBy: ["designsystem"],
+  },
+  "ds-components": {
+    layer: "pres", title: "designsystem/components", path: ["presentation/designsystem/components/"],
+    sum: "Composable dùng lại khắp app.",
+    body: () => ul(["<code>BrutalSurface</code> + <code>hardShadow</code>, <code>dashedBorder</code> — nền tảng của phong cách.", "<code>VfPrimaryButton</code>, <code>VfIconTileButton</code>, <code>VfTextButton</code>.", "<code>VfPill</code>, <code>MacroPills</code>, <code>CheckBadge</code>, <code>DishNumberBadge</code>.", "<code>ProgressRing</code>, <code>animatedProgress</code>, <code>stripes</code>.", "<code>MainTabScaffold</code> → <code>VfBottomNavBar</code> | <code>VfNavigationRail</code>.", "<code>MealPhotoImage</code>, <code>PhotoMarkersLayer</code> (resolve <code>bundled://</code>).", "Motion: <code>popIn</code>, <code>floating</code>, <code>wiggle</code>, <code>spinning</code>, <code>bouncing</code>, <code>pinging</code>, <code>breathing</code>.", "<code>VfLoadingIndicator</code>, <code>VfMessageCard</code>, <code>VfErrorState</code>, <code>VfTopBar</code>, <code>VfSnackbarHost</code>.", "<span class=\"bad\">⚠ <code>Responsive.kt</code> — chưa commit, tham chiếu hằng không tồn tại, không ai dùng.</span>"]),
+    uses: [], usedBy: ["designsystem"],
+  },
+  "ds-layout": {
+    layer: "pres", title: "designsystem/layout", path: ["WindowLayout.kt", "AdaptiveLayout.kt"],
+    sum: "Quyết định bố cục theo kích thước cửa sổ (Material 3 window size classes).",
+    body: () => ul(["<code>WindowLayout</code> + <code>LocalWindowLayout</code> + <code>ProvideWindowLayout</code>.", "<code>VfContentWidth</code>: Form 480 · Column 640 · TwoPane 1180 dp.", "<code>maxContentWidth()</code>, <code>centeringPadding()</code>, <code>expandedBy()</code>.", "<code>proportionalHeight()</code>, <code>ScaleDownToFit</code>, <code>AdaptiveGrid</code>, <code>withFontScale()</code>."]) + goTab("responsive", "Thử mô phỏng responsive →"),
+    code: ["k-window"], uses: [], usedBy: ["designsystem"],
+  },
+  "ds-icons": {
+    layer: "pres", title: "designsystem/icons", path: ["VfIcons.kt", "VfIcon.kt"],
+    sum: "Icon vẽ từ path SVG lấy thẳng từ file thiết kế (không dùng thư viện icon).",
+    body: () => ul(["<code>IconSpec(name, strokeWidth, paths)</code>, <code>VfPath(data, fill: FillRole)</code>.", "<code>FillRole</code>: None / Body / Accent → tô màu theo ngữ cảnh.", "<code>VfIcon(spec, …)</code> vẽ bằng Canvas."]),
+    uses: [], usedBy: ["designsystem"],
+  },
+  preview: {
+    layer: "pres", title: "preview", path: ["presentation/preview/PreviewFixtures.kt", "presentation/preview/VisionFitPreview.kt"],
+    sum: "Dữ liệu mẫu cố định cho <code>@Preview</code> và screenshot test — dựng thẳng UiState, không cần ViewModel hay repository.",
+    body: () => ul(["<code>PreviewFixtures.dashboard()</code>, <code>.analysis(stage)</code>, <code>.review()</code>, <code>.history()</code>, <code>.target</code>, ảnh mẫu…", "<code>VisionFitPreview { }</code> bọc theme + window layout.", "Dùng bởi <code>ScreenshotSmokeTest</code> và <code>ResponsiveScreenshotTest</code>."]),
+    uses: ["features", "model"], usedBy: [],
+  },
+  mvi: {
+    layer: "core", title: "core/mvi", path: ["core/mvi/MviViewModel.kt", "core/mvi/CollectEffects.kt"],
+    sum: "Lớp nền cho luồng dữ liệu một chiều. Mọi ViewModel của 8 màn hình đều kế thừa <code>MviViewModel&lt;State, Event, Effect&gt;</code>.",
+    body: () => ul(["<code>state: StateFlow</code> — nguồn sự thật duy nhất UI vẽ ra.", "<code>onEvent(event)</code> — lối vào duy nhất cho ý định người dùng.", "<code>effects: Flow</code> — từ <code>Channel(BUFFERED)</code>: sự kiện một lần, không phát lại.", "<code>CollectEffects</code> — chỉ collect khi ≥ STARTED, trên <code>Main.immediate</code> để effect phát ngay trước khi đổi lifecycle không bị mất."]) + goTab("mvi", "Xem vòng MVI từng bước →"),
+    code: ["k-mvi", "k-collect"], uses: [], usedBy: ["features"],
+  },
+  time: {
+    layer: "core", title: "core/time · TimeProvider", path: ["core/time/TimeProvider.kt"],
+    sum: "Đồng hồ tiêm vào được: “hôm nay”, lời chào, loại bữa ăn và dữ liệu seed đều phụ thuộc vào nó → test xác định.",
+    body: () => ul(["<code>SystemTimeProvider</code> — chạy thật.", "<code>FixedTimeProvider(LocalDateTime)</code> — dùng trong FlowTests &amp; AppFlowUiTest (05/10/2026 19:00)."]),
+    code: ["k-time"], uses: [], usedBy: ["di", "features", "store"],
+  },
+  format: {
+    layer: "core", title: "core/format · VnFormat", path: ["core/format/VnFormat.kt"],
+    sum: "Định dạng số và ngày kiểu Việt Nam đúng thiết kế.",
+    body: () => `<table class="simple"><tr><th>Hàm</th><th>Ví dụ</th></tr>
+      <tr><td><code>thousands</code></td><td>2034 → “2.034”, −500 → “−500” (dấu trừ thật)</td></tr>
+      <tr><td><code>signed</code></td><td>300 → “+300”</td></tr>
+      <tr><td><code>oneDecimal</code></td><td>54.1 → “54,1”, 46.0 → “46”</td></tr>
+      <tr><td><code>weekdayShort</code></td><td>T2 … T7, CN</td></tr>
+      <tr><td><code>longDate</code></td><td>“Thứ Hai, 05/10”</td></tr></table>`,
+    code: ["k-format"], uses: [], usedBy: ["features"],
+  },
+  di: {
+    layer: "di", title: "di · AppContainer", path: ["di/AppContainer.kt"],
+    sum: "DI thủ công: một class tạo sẵn store, 6 repository và 4 use case. Đây là <b>nơi duy nhất</b> biết tới các class <code>Mock*</code>.",
+    body: () => `<h4>Để nối backend thật</h4><p>Viết <code>KtorMealRepository : MealRepository</code>… rồi thay trong file này. Mọi thứ phía trên tầng data không phải sửa.</p>
+      <h4>applicationScope</h4><p><code>SupervisorJob() + Dispatchers.Main.immediate</code>, sống lâu hơn mọi màn hình → job phân tích ảnh chạy tiếp khi người dùng rời màn Analysis.</p>${goTab("di", "Xem ma trận ViewModel × phụ thuộc →")}`,
+    code: ["k-di"], uses: ["mockRepos", "store", "usecase", "time", "repoIf"], usedBy: ["app", "common"],
+  },
+  model: {
+    layer: "domain", title: "domain/model", path: ["domain/model/*.kt"],
+    sum: "Mô hình nghiệp vụ bất biến (data class / enum / sealed interface). Các giá trị dẫn xuất (kcal, macro, %) là property tính toán — không lưu trùng.",
+    body: () => `<h4>6 file</h4>${chipsHtml(["m-meal", "m-analysis", "m-body", "m-nutrition", "m-daylog", "m-auth"])}`,
+    uses: [], usedBy: ["features", "repoIf", "usecase", "mockRepos", "store", "common", "designsystem", "preview"],
+  },
+  "m-meal": {
+    layer: "domain", title: "Meal.kt", path: ["domain/model/Meal.kt"],
+    sum: "Bữa ăn và món ăn — trái tim của nhật ký.",
+    body: () => ul(["<code>MealType.forTime(time)</code>: 4–9h sáng · 10–13h trưa · 17–21h tối · còn lại bữa xế.", "<code>MealPhoto(uri)</code>: <code>bundled://…</code> cho demo, <code>https://</code> khi có backend.", "<code>FoodItem</code>: dinh dưỡng lưu theo 100g → đổi gram là kcal/macro tự đổi; <code>confidence == null</code> = tự nhập.", "<code>MealEntry</code> sealed: <code>ConfirmedMeal</code> | <code>PendingMeal(jobId, status)</code>.", "<code>mealTitleFor(items)</code>: “A”, “A &amp; B”, “A, B &amp; 2 món khác”."]),
+    code: ["k-model-meal"], uses: [], usedBy: ["model"],
+  },
+  "m-analysis": {
+    layer: "domain", title: "Analysis.kt", path: ["domain/model/Analysis.kt"],
+    sum: "Job phân tích ảnh phía server và kết quả nhận diện.",
+    body: () => ul(["<code>AnalysisStage</code>: RECOGNIZING → CALCULATING → COMPLETED | FAILED (<code>isTerminal</code>).", "<code>AnalysisFailure</code>: INVALID_AI_RESPONSE, NO_FOOD_DETECTED.", "<code>DetectionRegion</code>: vị trí món chuẩn hoá theo ảnh (0..1) → vẽ marker ở mọi kích thước/crop.", "<code>AnalysisTimings</code>: upload, queue, recognition, calculation."]) + goTab("pipeline", "Xem pipeline AI →"),
+    code: ["k-model-analysis"], uses: [], usedBy: ["model"],
+  },
+  "m-body": {
+    layer: "domain", title: "BodyProfile.kt", path: ["domain/model/BodyProfile.kt"],
+    sum: "Hồ sơ cơ thể, tự kiểm tra hợp lệ trong <code>init { require(...) }</code>.",
+    body: () => ul(["<code>Sex</code>: MALE, FEMALE.", "<code>ActivityLevel(multiplier)</code>: 1.2 · 1.375 · 1.55 · 1.725.", "<code>FitnessGoal(dailyAdjustmentKcal)</code>: FAT_LOSS −500, MUSCLE_GAIN +300.", "Giới hạn: tuổi 14–90, cao 120–220 cm, nặng 30–200 kg.", "<code>Default</code>: Nam, 25t, 172cm, 68kg, MODERATE, FAT_LOSS → 2.034 kcal."]),
+    uses: [], usedBy: ["model"],
+  },
+  "m-nutrition": {
+    layer: "domain", title: "Nutrition.kt", path: ["domain/model/Nutrition.kt"],
+    sum: "Macro và mục tiêu dinh dưỡng.",
+    body: () => ul(["<code>Macros(proteinG, carbsG, fatG)</code> có <code>operator plus</code>.", "<code>MacroTargets</code>: % năng lượng luôn cộng đủ 100 (4/4/9 kcal mỗi gram).", "<code>NutritionTarget</code>: bmr, tdee, activityMultiplier, adjustment, dailyKcal, macros, goal."]),
+    uses: [], usedBy: ["model"],
+  },
+  "m-daylog": {
+    layer: "domain", title: "DayLog.kt", path: ["domain/model/DayLog.kt"],
+    sum: "Nhật ký một ngày và tóm tắt so với mục tiêu.",
+    body: () => ul(["<code>DayLog(date, meals)</code> → <code>confirmedMeals</code>, <code>pendingMeals</code>.", "<code>MacroProgress</code>: fraction (không chặn trên), isOver, overByG.", "<code>DaySummary</code>: remainingKcal (âm khi vượt), isOverTarget, hasData.", "<code>DayStatus</code>: WITHIN_TARGET, OVER_TARGET, NO_DATA (chấm màu trên WeekStrip)."]),
+    uses: [], usedBy: ["model"],
+  },
+  "m-auth": {
+    layer: "domain", title: "Auth.kt", path: ["domain/model/Auth.kt"],
+    sum: "Phiên đăng nhập và kết quả xác thực.",
+    body: () => ul(["<code>UserSession(userId, email, displayName)</code> + <code>initials</code> (“Trần Minh Thư” → “TT”).", "<code>AuthError</code>: INVALID_CREDENTIALS, EMAIL_ALREADY_REGISTERED, ACCOUNT_LOCKED, NETWORK.", "<code>AuthResult</code> sealed: Success(session) | Failure(error)."]),
+    uses: [], usedBy: ["model"],
+  },
+  repoIf: {
+    layer: "domain", title: "domain/repository", path: ["domain/repository/Repositories.kt"],
+    sum: "6 interface — hợp đồng giữa UI và dữ liệu. Đọc bằng <code>StateFlow</code>/<code>Flow</code> (phản ứng), ghi bằng <code>suspend fun</code>.",
+    body: () => `<h4>Interface</h4>${chipsHtml(["r-auth", "r-profile", "r-meal", "r-analysis", "r-camera", "r-network"])}`,
+    code: ["k-repos"], uses: ["model"], usedBy: ["features", "di", "mockRepos"],
+  },
+  "r-auth": repo("AuthRepository", "MockAuthRepository", 900,
+    ["<code>val session: StateFlow&lt;UserSession?&gt;</code>", "<code>suspend fun login(email, password): AuthResult</code>", "<code>suspend fun register(email, password): AuthResult</code>", "<code>suspend fun requestPasswordReset(email): Boolean</code>", "<code>suspend fun logout()</code>"],
+    ["Tài khoản lưu trong <code>store.accounts</code>.", "Demo: <code>an@visionfit.vn / visionfit123</code>; <code>locked@visionfit.vn</code> → ACCOUNT_LOCKED.", "Đăng ký: tên hiển thị suy từ email (“minh.tran@x.vn” → “Minh”)."], ["scr-auth", "scr-dashboard"]),
+  "r-profile": repo("ProfileRepository", "MockProfileRepository", 400,
+    ["<code>val profile: StateFlow&lt;BodyProfile&gt;</code>", "<code>suspend fun saveProfile(profile)</code>"],
+    ["Ghi thẳng vào <code>store.profile</code> → mọi màn đang <code>map(calculateTarget)</code> tự tính lại."], ["scr-onboarding", "scr-goal", "scr-dashboard", "scr-history", "scr-review"]),
+  "r-meal": repo("MealRepository", "MockMealRepository", 600,
+    ["<code>fun observeDay(date): Flow&lt;DayLog&gt;</code>", "<code>fun observeRange(from, to): Flow&lt;List&lt;DayLog&gt;&gt;</code>", "<code>suspend fun saveMeal(jobId?, type, loggedAt, photo, items, isEdited): String</code>"],
+    ["Đọc: <code>store.meals.map { … }.distinctUntilChanged()</code>.", "Lưu: xoá <code>PendingMeal</code> cùng <code>jobId</code> rồi thêm <code>ConfirmedMeal</code> → không bị trùng.", "<code>require(items.isNotEmpty())</code>."], ["scr-dashboard", "scr-history", "scr-review"], "k-meal-mock"),
+  "r-analysis": repo("MealAnalysisRepository", "MockMealAnalysisRepository", 700,
+    ["<code>suspend fun submitPhoto(photo, capturedAt): String</code> — trả jobId", "<code>fun observeJob(jobId): Flow&lt;AnalysisJob?&gt;</code>", "<code>suspend fun retry(jobId)</code>"],
+    ["Upload giả 700ms, mỗi giai đoạn 3,5s, chạy trong <code>applicationScope</code>.", "Cứ ảnh thứ 2 gửi lên sẽ lỗi lần đầu (để demo trạng thái lỗi + thử lại).", "<code>observeJob</code> <code>onStart</code>: tiếp tục job seed chưa xong (bữa tối mẫu).", "Đồng bộ <code>PendingMeal.status</code> theo stage. Cố ý không thread-safe (main-confined)."], ["scr-camera", "scr-analysis", "scr-review"], "k-mock-analysis"),
+  "r-camera": repo("CameraSource", "MockCameraSource", 250,
+    ["<code>val previewFrame: MealPhoto</code>", "<code>suspend fun capturePhoto(): MealPhoto</code>", "<code>suspend fun recentPhotos(): List&lt;MealPhoto&gt;</code>"],
+    ["Luôn “nhìn” vào mâm cơm gia đình; thư viện gồm 4 ảnh bundled.", "Bản thật: CameraX / PhotoPicker (Android), AVFoundation / PHPicker (iOS)."], ["scr-camera"]),
+  "r-network": repo("NetworkMonitor", "MockNetworkMonitor", 0,
+    ["<code>val isOnline: StateFlow&lt;Boolean&gt;</code>", "<code>val lastSyncedAt: StateFlow&lt;LocalDateTime?&gt;</code>"],
+    ["Mặc định online. <code>setOnline(false)</code> (debug/test) → banner offline + thẻ “Chờ kết nối mạng”.", "UI đổi ANALYZING → WAITING_FOR_NETWORK qua <code>PendingStatus.effective(isOffline)</code>."], ["scr-dashboard", "scr-history"]),
+  usecase: {
+    layer: "domain", title: "domain/usecase", path: ["domain/usecase/*.kt"],
+    sum: "4 class thuần với <code>operator fun invoke</code>, không phụ thuộc gì → test cực dễ (NutritionUseCasesTest, VnFormatTest).",
+    body: () => `<h4>Use case</h4>${chipsHtml(["u-target", "u-summary", "u-streak", "u-validate"])}`,
+    uses: ["model"], usedBy: ["features", "di"],
+  },
+  "u-target": {
+    layer: "domain", title: "CalculateNutritionTargetUseCase", path: ["domain/usecase/CalculateNutritionTargetUseCase.kt"],
+    sum: "Mifflin–St Jeor BMR × hệ số vận động, cộng điều chỉnh theo mục tiêu. Protein 2g/kg, chất béo 25% năng lượng, carb lấp phần còn lại. Thử ngay:",
+    body: () => `<div class="calc" id="calc">
+        <label>Giới tính<select data-k="sex"><option value="M">Nam</option><option value="F">Nữ</option></select></label>
+        <label>Tuổi<input data-k="age" type="number" min="14" max="90" value="25"></label>
+        <label>Cao (cm)<input data-k="h" type="number" min="120" max="220" value="172"></label>
+        <label>Nặng (kg)<input data-k="w" type="number" min="30" max="200" value="68"></label>
+        <label>Vận động<select data-k="act"><option value="1.2">SEDENTARY 1,2</option><option value="1.375">LIGHT 1,375</option><option value="1.55" selected>MODERATE 1,55</option><option value="1.725">ACTIVE 1,725</option></select></label>
+        <label>Mục tiêu<select data-k="goal"><option value="-500">FAT_LOSS −500</option><option value="300">MUSCLE_GAIN +300</option></select></label>
+      </div><div class="calc-out" id="calcOut"></div>`,
+    after: initCalc, code: ["k-uc-target"], uses: ["model"], usedBy: ["scr-onboarding", "scr-goal", "scr-dashboard", "scr-history", "scr-review"],
+  },
+  "u-summary": {
+    layer: "domain", title: "SummarizeDayUseCase", path: ["domain/usecase/SummarizeDayUseCase.kt"],
+    sum: "Tổng hợp một ngày so với mục tiêu — <b>chỉ tính bữa đã xác nhận</b>, bữa đang phân tích chưa có số liệu đáng tin.",
+    body: () => ul(["<code>invoke(day, target): DaySummary</code>", "<code>status(day, target): DayStatus</code> — NO_DATA / OVER_TARGET / WITHIN_TARGET"]),
+    code: ["k-uc-summary"], uses: ["model"], usedBy: ["scr-dashboard", "scr-history", "scr-review"],
+  },
+  "u-streak": {
+    layer: "domain", title: "CalculateStreakUseCase", path: ["domain/usecase/CalculateStreakUseCase.kt"],
+    sum: "Số ngày liên tiếp có ít nhất một bữa đã xác nhận, đếm lùi <b>từ hôm qua</b> — hôm nay chưa xong nên không làm gãy (hay kéo dài) chuỗi.",
+    code: ["k-uc-streak"], uses: ["model"], usedBy: ["scr-dashboard"],
+  },
+  "u-validate": {
+    layer: "domain", title: "ValidateCredentialsUseCase", path: ["domain/usecase/ValidateCredentialsUseCase.kt"],
+    sum: "Kiểm tra form đăng nhập/đăng ký trước khi gọi server. Trả lỗi theo từng trường để UI hiển thị inline.",
+    code: ["k-uc-validate"], uses: [], usedBy: ["scr-auth"],
+  },
+  mockRepos: {
+    layer: "data", title: "data/repository · Mock*", path: ["data/repository/Mock*.kt"],
+    sum: "6 implementation <code>internal</code> của interface domain, có độ trễ giả lập để thấy được trạng thái loading. Đều đọc/ghi chung một <code>InMemoryVisionFitStore</code>.",
+    body: () => `<h4>Implementation (bấm để xem interface + hành vi mock)</h4>${chipsHtml(["r-auth", "r-profile", "r-meal", "r-analysis", "r-camera", "r-network"])}`,
+    uses: ["repoIf", "store", "model"], usedBy: ["di"],
+  },
+  store: {
+    layer: "data", title: "InMemoryVisionFitStore", path: ["data/mock/InMemoryVisionFitStore.kt", "data/mock/MockFoods.kt", "data/mock/MockPhotos.kt"],
+    sum: "“Backend giả” dùng chung cho mọi mock repository: một chỗ giữ meals, jobs, profile, accounts → các repository luôn nhất quán với nhau.",
+    body: () => ul(["5 <code>MutableStateFlow</code>: <code>accounts</code>, <code>profile</code>, <code>meals</code>, <code>jobs</code>, <code>aiResults</code>.", "<code>Seed(today)</code>: dữ liệu tính tương đối theo hôm nay → demo luôn giống thiết kế (1.663/2.034 kcal, bữa tối đang phân tích, streak 6 ngày).", "<code>MockAiCatalog</code>: kết quả AI cho từng ảnh (mâm cơm → 4 món, 819 kcal).", "<code>MockPhotos</code>: <code>bundled://family_tray</code>, <code>com_tam</code>, <code>milk_tea</code>, <code>banh_mi</code>."]),
+    code: ["k-store"], uses: ["model", "time"], usedBy: ["mockRepos", "di"],
+  },
+};
+function repo(name, mock, latency, api, behavior, usedBy, extraCode) {
+  return {
+    layer: "domain", title: name, path: ["domain/repository/Repositories.kt", `data/repository/${mock}.kt`],
+    sum: `Interface ở domain, implementation <code>${mock}</code> ở data${latency ? ` (trễ giả lập ${latency}ms)` : ""}.`,
+    body: () => `<h4>API</h4>${ul(api)}<h4>Hành vi của ${mock}</h4>${ul(behavior)}`,
+    code: extraCode ? [extraCode] : [], uses: ["model"], usedBy,
+  };
+}
+for (const id of SCREEN_IDS) {
+  const s = SCREENS[id];
+  D[id] = {
+    layer: "pres", title: `${s.n} · ${s.name}`, path: [s.pkg + "/"],
+    sum: `<b>${s.vi}</b> — ${s.loc.toLocaleString("vi-VN")} dòng.`,
+    body: () => screenBody(id), uses: s.deps, usedBy: ["navigation"],
+  };
+}
+const TESTS = {
+  "t-vnformat": { file: "commonTest/.../core/VnFormatTest.kt", kind: "Unit", what: "Định dạng số/ngày tiếng Việt và validate credentials.", cases: ["numbersUseVietnameseSeparators", "datesUseVietnameseWeekdays", "credentialsValidation"] },
+  "t-nutrition": { file: "commonTest/.../domain/NutritionUseCasesTest.kt", kind: "Unit", what: "Công thức dinh dưỡng, tóm tắt ngày, streak, tiêu đề bữa.", cases: ["defaultProfileMatchesTheDesignNumbers", "femaleMuscleGainAddsSurplusAndKeepsPercentagesAtHundred", "daySummaryOnlyCountsConfirmedMeals", "emptyDayHasNoDataStatus", "streakCountsConsecutiveCompletedDaysBeforeToday", "mealTitleSummarizesDishes"] },
+  "t-window": { file: "commonTest/.../presentation/WindowLayoutTest.kt", kind: "Unit", what: "Breakpoint responsive của WindowLayout.", cases: ["designPhoneKeepsThePhoneLayout", "smallPhoneTightensTheGutter", "phonesHeldSidewaysGetTheRailAndTwoPanes", "portraitTabletUsesTheRailWithOneCenteredColumn", "desktopAndLandscapeTabletUseTwoPanes", "centeringPaddingNeverGoesBelowTheGutter"] },
+  "t-flow": { file: "commonTest/.../presentation/FlowTests.kt", kind: "ViewModel flow", what: "Chạy ViewModel thật + AppContainer thật với test dispatcher & FixedTimeProvider.", cases: ["seededDinnerIsAnalyzedReviewedAndSaved", "reviewValidatesBlankNamesAndSupportsUndo", "everySecondCaptureFailsOnceThenRetrySucceeds", "authValidatesAndSignsIn", "dashboardShowsTheDesignDay", "historySwitchesDaysAndHandlesEmptyDates"] },
+  "t-appflow": { file: "jvmTest/.../AppFlowUiTest.kt", kind: "E2E UI", what: "Compose UI test toàn app: đăng nhập → chuông → nhật ký → phân tích → review → lưu; kiểm tra tổng 1.663 + 819 kcal.", cases: ["signInAnalyzeReviewAndSave"] },
+  "t-responsive": { file: "jvmTest/.../ResponsiveScreenshotTest.kt", kind: "Screenshot", what: "Render 9 màn ở 7 kích thước → build/screenshots/responsive/<device>/.", cases: ["smallPhone (320×640)", "androidPhone (384×760)", "phoneLandscape (844×390)", "phoneLargeText (390×844, 130%)", "tabletPortrait (834×1194)", "tabletLandscape (1194×834)", "desktop (1280×800)"] },
+  "t-smoke": { file: "jvmTest/.../ScreenshotSmokeTest.kt", kind: "Screenshot", what: "Chụp từng màn và các trạng thái biên → build/screenshots/.", cases: ["authLogin", "onboarding", "dashboard", "dashboardOfflineOverTarget", "dashboardEmptyDay", "camera", "cameraLibrary", "analysisRecognizing / Completed / Failed", "review", "reviewManualEmpty", "…"] },
+};
+for (const id in TESTS) {
+  const t = TESTS[id];
+  D[id] = { layer: "test", title: t.file.split("/").pop(), path: ["composeApp/src/" + t.file], sum: t.what, body: () => `<h4>${t.cases.length} test case</h4>${ul(t.cases.map(c => `<code>${esc(c)}</code>`))}` };
+}
+function titleOf(id) {
+  if (id === "time") return "TimeProvider";
+  const d = D[id];
+  return d ? d.title.replace(/^\d\d · /, "") : id;
+}
+function swatches() {
+  const c = [["ink", "#1B1530"], ["primary", "#5B3FE0"], ["violet", "#7B5CFF"], ["yellow", "#FFC53D"], ["coral", "#FF5A36"], ["mint", "#2DD4A0"], ["sky", "#3AA8FF"], ["pink", "#FF7AB6"], ["background", "#F4F0FF"], ["primaryC", "#E7E0FF"], ["yellowC", "#FFF0C2"], ["mintC", "#C7F5E3"]];
+  return `<div class="swatches">${c.map(([n, h]) => `<div class="sw"><div style="background:${h}"></div><span>${n}<br>${h}</span></div>`).join("")}</div>`;
+}
+function screenBody(id) {
+  const s = SCREENS[id];
+  const outs = NAV_EDGES.filter(e => e[0] === id);
+  return `${kv([["Destination", `<code>${esc(s.dest)}</code>`], ["ViewModel key", s.args ? `theo <code>${s.args}</code>` : "mặc định (1 bản / back stack entry)"]])}
+    <h4>ViewModel nhận qua constructor</h4>${chipsHtml(s.deps)}
+    <h4>Contract</h4><div class="contract">
+      <div style="background:var(--mint-c)"><h5>UiState</h5><ul>${s.state.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>
+      <div style="background:var(--sky-c)"><h5>Event (UI → VM)</h5><ul>${s.events.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>
+      <div style="background:var(--yellow-c)"><h5>Effect (VM → UI, một lần)</h5><ul>${s.effects.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div></div>
+    <h4>Logic đáng chú ý</h4><p style="margin:0;font-size:14px">${s.logic}</p>
+    <h4>components/</h4>${ul(s.comps)}
+    <h4>Điều hướng đi</h4>${outs.length ? ul(outs.map(e => `<b>${esc(e[2])}</b> → <button class="chip" type="button" data-go="${e[1]}">${SCREENS[e[1]].name}</button><br><code style="font-size:11px">${esc(e[3])}</code>`)) : "<p>—</p>"}
+    ${goTab("nav", "Xem trên bản đồ điều hướng →")}`;
+}
+function initCalc() {
+  const box = $("#calc");
+  if (!box) return;
+  const run = () => {
+    const v = k => box.querySelector(`[data-k="${k}"]`).value;
+    const w = +v("w"), h = +v("h"), a = +v("age"), act = +v("act"), goal = +v("goal");
+    const bmr = 10 * w + 6.25 * h - 5 * a + (v("sex") === "M" ? 5 : -161);
+    const tdee = bmr * act, daily = Math.round(tdee + goal);
+    const p = Math.round(2 * w), f = Math.trunc(daily * 0.25 / 9), c = Math.max(0, Math.trunc((daily - p * 4 - f * 9) / 4));
+    const tot = p * 4 + c * 4 + f * 9, pp = Math.round(p * 400 / tot), fp = Math.round(f * 900 / tot);
+    const n = x => x.toLocaleString("vi-VN");
+    $("#calcOut").innerHTML = `BMR <b>${n(Math.round(bmr))}</b> × ${String(act).replace(".", ",")} = TDEE <b>${n(Math.round(tdee))}</b> ${goal > 0 ? "+" : "−"} ${Math.abs(goal)} → <b>${n(daily)} kcal/ngày</b><br>Protein ${p}g (${pp}%) · Carb ${c}g (${100 - pp - fp}%) · Béo ${f}g (${fp}%)`;
+  };
+  box.addEventListener("input", run);
+  run();
+}
+
+/* ---------- Detail panel + selection ---------- */
+let currentId = null;
+const history_ = [];
+function select(id, opts = {}) {
+  if (!D[id]) return;
+  currentId = id;
+  if (!opts.fromCrumb) { const i = history_.indexOf(id); if (i >= 0) history_.splice(i, 1); history_.push(id); if (history_.length > 5) history_.shift(); }
+  renderDetail(id);
+  highlightOverview(id);
+  highlightNav(id);
+  highlightMatrix(id);
+  if (window.matchMedia("(max-width:1100px)").matches) { $("#detail").classList.add("open"); $("#scrim").classList.add("open"); }
+}
+function renderDetail(id) {
+  const d = D[id];
+  const rel = (label, ids) => ids && ids.length ? `<h4>${label}</h4>${chipsHtml(ids)}` : "";
+  $("#crumbs").innerHTML = history_.map((h, i) => i === history_.length - 1 ? `<span>${esc(titleOf(h))}</span>` : `<button type="button" data-crumb="${h}">${esc(titleOf(h))}</button><span>›</span>`).join("");
+  $("#detailBody").innerHTML = `
+    <div class="d-kicker" style="--lc:var(--L-${d.layer})"><i></i>${LAYER[d.layer]}</div>
+    <h2 class="d-title">${esc(d.title)}</h2>
+    ${d.path ? `<div class="d-path">${d.path.map(p => `<code>${esc(p)}</code>`).join("")}</div>` : ""}
+    <p class="d-sum">${d.sum}</p>
+    ${d.body ? d.body() : ""}
+    ${(d.code || []).map(codeBlock).join("")}
+    ${rel("Phụ thuộc vào", d.uses)}${rel("Được dùng bởi", d.usedBy)}`;
+  $("#detail").scrollTop = 0;
+  if (d.after) d.after();
+}
+function renderEmpty() {
+  $("#crumbs").innerHTML = "<span>Chi tiết</span>";
+  $("#detailBody").innerHTML = `<div class="empty"><div class="big">👆</div><h2 class="d-title">Chọn một thành phần</h2>
+    <p>Bấm vào khối, chip, màn hình, ô ma trận hay thẻ test bất kỳ — chi tiết (vai trò, file, code thật, quan hệ) hiện ở đây.</p>
+    <h4>Gợi ý bắt đầu</h4>${chipsHtml(["app", "di", "mvi", "features", "scr-review", "r-analysis", "u-target"])}</div>`;
+}
+document.addEventListener("click", e => {
+  const go = e.target.closest("[data-go]");
+  if (go) { e.stopPropagation(); select(go.dataset.go); return; }
+  const cr = e.target.closest("[data-crumb]");
+  if (cr) { select(cr.dataset.crumb, { fromCrumb: true }); return; }
+  const tg = e.target.closest("[data-tab-go]");
+  if (tg) { showTab(tg.dataset.tabGo); closeSheet(); return; }
+  const cp = e.target.closest("[data-copy]");
+  if (cp) { navigator.clipboard?.writeText(document.getElementById(cp.dataset.copy).textContent.trim()).then(() => { cp.textContent = "đã copy"; setTimeout(() => cp.textContent = "copy", 1200); }).catch(() => {}); }
+});
+function closeSheet() { $("#detail").classList.remove("open"); $("#scrim").classList.remove("open"); }
+$("#detailClose").onclick = closeSheet;
+$("#scrim").onclick = closeSheet;
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); });
+
+/* ---------- Tabs ---------- */
+const TABS = ["overview", "mvi", "nav", "di", "pipeline", "responsive", "build"];
+function showTab(t) {
+  if (!TABS.includes(t)) t = "overview";
+  $$(".tab").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === t)));
+  $$(".panel").forEach(p => p.classList.toggle("active", p.id === "p-" + t));
+  if (location.hash !== "#" + t) history.replaceState(null, "", "#" + t);
+  if (t === "overview") requestAnimationFrame(drawEdges);
+  window.scrollTo({ top: Math.min(window.scrollY, $("main").offsetTop - 60) });
+}
+$$(".tab").forEach(b => b.onclick = () => showTab(b.dataset.tab));
+
+/* ---------- 1. Overview ---------- */
+const OV_LAYERS = [
+  { layer: "platform", label: "Platform shells", note: "3 module mỏng", nodes: [["androidApp", "androidApp", "MainActivity"], ["iosApp", "iosApp", "SwiftUI → ComposeUIViewController"], ["desktopApp", "desktopApp", "Window 390×844"]] },
+  { layer: "root", label: "App root", note: "App.kt", nodes: [["app", "VisionFitApp", "Theme · CompositionLocals · WindowLayout · NavHost · Snackbar"]] },
+  { layer: "pres", label: "Presentation", note: "~10.6k dòng", nodes: [["navigation", "navigation", "8 route type-safe · NavHost"], ["features", "features", "Contract · ViewModel · Screen", SCREEN_IDS, id => SCREENS[id].name], ["common", "common", "containerViewModel · AppMessenger · UI mappers"], ["designsystem", "designsystem", "theme · components · layout · icons", ["ds-theme", "ds-components", "ds-layout", "ds-icons"], id => id.slice(3)], ["preview", "preview", "fixtures cho @Preview & screenshot"]] },
+  { layer: "domain", label: "Domain", note: "thuần Kotlin · 579 dòng", nodes: [["model", "model", "data class · enum · sealed", ["m-meal", "m-analysis", "m-body", "m-nutrition", "m-daylog", "m-auth"], id => D[id].title.replace(".kt", "")], ["repoIf", "repository", "6 interface (Flow + suspend)", ["r-auth", "r-profile", "r-meal", "r-analysis", "r-camera", "r-network"], id => D[id].title.replace("Repository", "")], ["usecase", "usecase", "4 phép tính nghiệp vụ", ["u-target", "u-summary", "u-streak", "u-validate"], id => ({ "u-target": "NutritionTarget", "u-summary": "SummarizeDay", "u-streak": "Streak", "u-validate": "ValidateCredentials" })[id]]] },
+  { layer: "data", label: "Data", note: "mock · 763 dòng", nodes: [["mockRepos", "repository (Mock*)", "implements domain interfaces", ["r-auth", "r-profile", "r-meal", "r-analysis", "r-camera", "r-network"], id => "Mock" + D[id].title.replace(/Repository|Source/, "")], ["store", "InMemoryVisionFitStore", "backend giả · seed · mock AI"]] },
+];
+const OV_SIDE = [
+  { layer: "di", label: "DI", note: "53 dòng", nodes: [["di", "AppContainer", "tạo mọi repository & use case"]] },
+  { layer: "core", label: "Core", note: "186 dòng", grow: true, nodes: [["mvi", "mvi", "MviViewModel · CollectEffects"], ["time", "time", "TimeProvider"], ["format", "format", "VnFormat"]] },
+];
+const OV_EDGES = [
+  ["androidApp", "app"], ["iosApp", "app"], ["desktopApp", "app"],
+  ["app", "navigation"], ["app", "designsystem"], ["app", "common"], ["app", "di"],
+  ["navigation", "features"],
+  ["features", "mvi"], ["features", "common"], ["features", "designsystem"], ["features", "model"], ["features", "repoIf"], ["features", "usecase"], ["features", "time"], ["features", "format"],
+  ["common", "di"], ["common", "designsystem"], ["common", "model"],
+  ["designsystem", "model"], ["preview", "features"], ["preview", "model"],
+  ["di", "mockRepos"], ["di", "store"], ["di", "usecase"], ["di", "time"], ["di", "repoIf"],
+  ["mockRepos", "repoIf", "impl"], ["mockRepos", "store"], ["mockRepos", "model"],
+  ["store", "model"], ["store", "time"], ["repoIf", "model"], ["usecase", "model"],
+];
+function bandHtml(b) {
+  return `<div class="band${b.grow ? " grow" : ""}" style="--lc:var(--L-${b.layer})"><div class="band-label"><i></i>${b.label}<span>${b.note}</span></div>
+    <div class="row">${b.nodes.map(([id, t, sub, chips, lab]) => {
+      return `<div class="node" role="button" tabindex="0" data-node="${id}" style="--lc:var(--L-${b.layer});--lcc:var(--L-${b.layer}-c)">
+        <h3>${esc(t)}</h3><div class="sub">${esc(sub)}</div>
+        ${chips ? `<div class="chips">${chips.map(c => `<button class="chip" type="button" data-go="${c}" data-parent="${id}">${esc(lab(c))}</button>`).join("")}</div>` : ""}</div>`;
+    }).join("")}</div></div>`;
+}
+$("#layers").innerHTML = OV_LAYERS.map(bandHtml).join("");
+$("#side").innerHTML = OV_SIDE.map(bandHtml).join("");
+const SCREEN_TO_NODE = id => id.startsWith("scr-") ? "features" : id.startsWith("ds-") ? "designsystem" : id.startsWith("m-") ? "model" : id.startsWith("u-") ? "usecase" : id.startsWith("r-") ? "repoIf" : id;
+let hoverNode = null, pinnedNode = null;
+function nodeEl(id) { return $(`[data-node="${id}"]`); }
+function drawEdges() {
+  const arch = $("#arch"), layer = $("#edgeLayer");
+  if (!arch.offsetParent) return;
+  const base = arch.getBoundingClientRect();
+  layer.innerHTML = "";
+  const focus = hoverNode || pinnedNode;
+  const all = $("#allEdges").checked;
+  const rect = id => { const r = nodeEl(id).getBoundingClientRect(); return { l: r.left - base.left, t: r.top - base.top, r: r.right - base.left, b: r.bottom - base.top, cx: (r.left + r.right) / 2 - base.left, cy: (r.top + r.bottom) / 2 - base.top }; };
+  for (const [a, b, kind] of OV_EDGES) {
+    let mode = null;
+    if (focus === a) mode = "out"; else if (focus === b) mode = "in"; else if (all) mode = "all"; else continue;
+    const s = rect(a), t = rect(b);
+    let d;
+    if (t.t > s.b + 4) d = `M${s.cx},${s.b} C${s.cx},${(s.b + t.t) / 2} ${t.cx},${(s.b + t.t) / 2} ${t.cx},${t.t - 3}`;
+    else if (s.t > t.b + 4) d = `M${s.cx},${s.t} C${s.cx},${(s.t + t.b) / 2} ${t.cx},${(s.t + t.b) / 2} ${t.cx},${t.b + 3}`;
+    else if (t.l > s.r) d = `M${s.r},${s.cy} C${(s.r + t.l) / 2},${s.cy} ${(s.r + t.l) / 2},${t.cy} ${t.l - 3},${t.cy}`;
+    else d = `M${s.l},${s.cy} C${(s.l + t.r) / 2},${s.cy} ${(s.l + t.r) / 2},${t.cy} ${t.r + 3},${t.cy}`;
+    const color = mode === "out" ? "var(--primary)" : mode === "in" ? "var(--coral)" : "var(--faint)";
+    svgEl("path", { d, stroke: color, "stroke-dasharray": kind === "impl" ? "6 5" : "", opacity: mode === "all" ? .45 : 1, "marker-end": `url(#ah-${mode === "all" ? "all" : mode})` }, layer);
+  }
+  const arch_ = $("#arch");
+  arch_.classList.toggle("focus", !!focus);
+  $$(".node").forEach(n => n.classList.remove("hl"));
+  if (focus) {
+    nodeEl(focus).classList.add("hl");
+    OV_EDGES.forEach(([a, b]) => { if (a === focus) nodeEl(b).classList.add("hl"); if (b === focus) nodeEl(a).classList.add("hl"); });
+  }
+}
+function highlightOverview(id) {
+  const n = SCREEN_TO_NODE(id);
+  pinnedNode = nodeEl(n) ? n : null;
+  $$(".node").forEach(x => x.classList.toggle("sel", x.dataset.node === pinnedNode));
+  $$(".node .chip").forEach(c => c.classList.toggle("on", c.dataset.go === id));
+  drawEdges();
+}
+$$(".node").forEach(n => {
+  n.addEventListener("mouseenter", () => { hoverNode = n.dataset.node; drawEdges(); });
+  n.addEventListener("mouseleave", () => { hoverNode = null; drawEdges(); });
+  n.addEventListener("click", () => select(n.dataset.node));
+  n.addEventListener("keydown", e => { if (e.target !== n) return; if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(n.dataset.node); } });
+});
+$$(".node .chip").forEach(c => c.addEventListener("mouseenter", () => { hoverNode = c.dataset.parent; drawEdges(); }));
+$("#allEdges").onchange = drawEdges;
+$("#clearSel").onclick = () => { pinnedNode = null; currentId = null; $$(".node").forEach(x => x.classList.remove("sel")); $$(".node .chip").forEach(c => c.classList.remove("on")); drawEdges(); renderEmpty(); };
+new ResizeObserver(() => drawEdges()).observe($("#arch"));
+
+/* ---------- 2. MVI ---------- */
+const MVI_NODES = {
+  screen: { x: 130, y: 70, t: "ReviewScreen", s: "stateless · (state, onEvent)", go: "scr-review", fill: "var(--pink-c)" },
+  vm: { x: 500, y: 70, t: "ReviewViewModel", s: "MviViewModel<S, E, F>", go: "mvi", fill: "var(--primary-c)" },
+  repo: { x: 870, y: 70, t: "MealRepository", s: "interface (domain)", go: "r-meal", fill: "var(--mint-c)" },
+  state: { x: 130, y: 225, t: "StateFlow<UiState>", s: "state · luôn có giá trị", go: "mvi", fill: "var(--sky-c)" },
+  channel: { x: 500, y: 225, t: "Channel<Effect>", s: "effects · một lần", go: "mvi", fill: "var(--sky-c)" },
+  store: { x: 870, y: 225, t: "Store (MutableStateFlow)", s: "InMemoryVisionFitStore", go: "store", fill: "var(--yellow-c)" },
+  route: { x: 500, y: 365, t: "ReviewRoute", s: "CollectEffects { }", go: "scr-review", fill: "var(--pink-c)" },
+  nav: { x: 130, y: 365, t: "NavController · AppMessenger", s: "điều hướng · snackbar", go: "navigation", fill: "var(--primary-c)" },
+};
+const MVI_EDGES = {
+  e1: ["screen", "vm", "onEvent"], e2: ["vm", "state", "updateState"], e3: ["vm", "repo", "suspend call"], e4: ["repo", "store", "update"],
+  e5: ["store", "vm", "Flow emit"], e6: ["state", "screen", "collect"], e7: ["vm", "channel", "sendEffect"], e8: ["channel", "route", "collect"], e9: ["route", "nav", "callback"],
+};
+const MVI_STEPS = [
+  { who: "Screen → ViewModel", t: "Người dùng bấm “Xác nhận & lưu”", d: "Screen không tự xử lý gì: nó chỉ gửi một <code>ReviewEvent.Save</code> qua <code>onEvent</code>. Nhờ vậy <code>ReviewScreen</code> render được trong <code>@Preview</code> với một lambda rỗng.", n: ["screen", "vm"], e: ["e1"], code: "k-s1" },
+  { who: "ViewModel", t: "onEvent → save(): validate trước", d: "<code>onEvent</code> là lối vào duy nhất. <code>save()</code> chặn bấm đúp (<code>isSaving</code>) và validate; nếu thiếu tên/khối lượng thì đánh dấu món lỗi + gửi effect <code>ShowIssue</code> rồi dừng.", n: ["vm"], e: [], code: "k-s2" },
+  { who: "ViewModel → State", t: "updateState { isSaving = true }", d: "State chỉ đổi qua reducer thuần <code>copy(...)</code>. Nút chuyển sang loading ngay lập tức.", n: ["vm", "state"], e: ["e2"], code: "k-s3" },
+  { who: "ViewModel → Repository", t: "Gọi mealRepository.saveMeal(...)", d: "Chạy trong <code>viewModelScope</code>. ViewModel chỉ biết <b>interface</b> <code>MealRepository</code> — không biết đó là mock hay Ktor. <code>CancellationException</code> luôn được ném lại; lỗi khác → effect <code>SaveFailed</code>.", n: ["vm", "repo"], e: ["e3"], code: "k-s4" },
+  { who: "Repository → Store", t: "Thay PendingMeal bằng ConfirmedMeal", d: "Mock repository cập nhật <code>store.meals</code> một cách nguyên tử: bỏ entry đang chờ cùng <code>jobId</code>, thêm bữa đã xác nhận → nhật ký không bao giờ bị trùng.", n: ["repo", "store"], e: ["e4"], code: "k-s5" },
+  { who: "Store → ViewModel(s)", t: "Flow phát giá trị mới", d: "Mọi <code>observeDay</code>/<code>observeRange</code> đang được collect đều nhận DayLog mới: ReviewVM tính lại <code>remainingBeforeKcal</code>; DashboardVM &amp; HistoryVM (vẫn sống dưới back stack) tự tính lại tóm tắt. Không ai phải “refresh” thủ công.", n: ["store", "vm"], e: ["e5"], code: "k-s6" },
+  { who: "ViewModel → State", t: "updateState lần nữa (finally: isSaving = false)", d: "<code>MutableStateFlow.update</code> là compare-and-set nguyên tử, an toàn khi nhiều coroutine cùng cập nhật.", n: ["vm", "state"], e: ["e2"], code: "k-s7" },
+  { who: "State → Screen", t: "collectAsStateWithLifecycle → recompose", d: "Route collect state (dừng khi app xuống nền) và truyền xuống Screen. Compose chỉ vẽ lại phần thay đổi.", n: ["state", "screen"], e: ["e6"], code: "k-s8" },
+  { who: "ViewModel → Channel", t: "sendEffect(MealSaved(type, kcal))", d: "Điều hướng và snackbar <b>không</b> nằm trong state (nếu không, xoay màn hình sẽ điều hướng lại). Chúng đi qua <code>Channel</code>: mỗi effect tiêu thụ đúng một lần.", n: ["vm", "channel"], e: ["e7"], code: "k-s9" },
+  { who: "Channel → Route", t: "CollectEffects nhận effect", d: "Chỉ collect khi lifecycle ≥ STARTED, trên <code>Dispatchers.Main.immediate</code> để effect phát ngay trước khi đổi lifecycle không bị rơi.", n: ["channel", "route"], e: ["e8"], code: "k-s10" },
+  { who: "Route → NavController / AppMessenger", t: "Snackbar + về Dashboard", d: "Route map effect sang callback mà NavHost truyền vào. <code>AppMessenger</code> chạy trong scope gốc nên snackbar “Đã lưu bữa tối · 819 kcal” vẫn hiện trên Dashboard. <code>navigateToDashboard()</code> pop về Dashboard có sẵn.", n: ["route", "nav"], e: ["e9"], code: "k-s11" },
+];
+const NW = 210, NH = 58;
+function clipRect(cx, cy, tx, ty, w, h) {
+  const dx = tx - cx, dy = ty - cy;
+  if (!dx && !dy) return [cx, cy];
+  const sx = (w / 2) / Math.abs(dx || 1e-9), sy = (h / 2) / Math.abs(dy || 1e-9), s = Math.min(sx, sy);
+  return [cx + dx * s, cy + dy * s];
+}
+function buildMvi() {
+  const svg = $("#mviSvg");
+  const defs = svgEl("defs", {}, svg);
+  for (const [id, col] of [["mv-a", "var(--line)"], ["mv-on", "var(--primary)"]]) {
+    const m = svgEl("marker", { id, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" }, defs);
+    svgEl("path", { d: "M0,0 L10,5 L0,10 z", fill: col }, m);
+  }
+  const gE = svgEl("g", {}, svg), gN = svgEl("g", {}, svg);
+  Object.entries(MVI_EDGES).forEach(([id, [a, b]]) => {
+    const A = MVI_NODES[a], B = MVI_NODES[b];
+    const [x1, y1] = clipRect(A.x, A.y, B.x, B.y, NW + 8, NH + 8), [x2, y2] = clipRect(B.x, B.y, A.x, A.y, NW + 12, NH + 12);
+    svgEl("path", { d: `M${x1},${y1} L${x2},${y2}`, class: "mvi-e", id: "mvi-" + id, "marker-end": "url(#mv-a)" }, gE);
+    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+    const g = svgEl("g", { id: "mvib-" + id, opacity: .35 }, gE);
+    svgEl("circle", { cx: mx, cy: my, r: 11, fill: "var(--primary)", stroke: "var(--line)", "stroke-width": 1.5 }, g);
+    const t = svgEl("text", { x: mx, y: my + 4, "text-anchor": "middle", class: "badge-n" }, g);
+    t.textContent = MVI_STEPS.findIndex(s => s.e.includes(id)) + 1;
+  });
+  Object.entries(MVI_NODES).forEach(([id, n]) => {
+    const g = svgEl("g", { class: "svg-node mvi-n", id: "mvin-" + id, tabindex: 0, role: "button" }, gN);
+    svgEl("rect", { x: n.x - NW / 2 + 4, y: n.y - NH / 2 + 4, width: NW, height: NH, rx: 14, fill: "var(--shadow)" }, g);
+    svgEl("rect", { x: n.x - NW / 2, y: n.y - NH / 2, width: NW, height: NH, rx: 14, fill: n.fill, class: "body" }, g);
+    const t1 = svgEl("text", { x: n.x, y: n.y - 3, "text-anchor": "middle", class: "t1" }, g); t1.textContent = n.t;
+    const t2 = svgEl("text", { x: n.x, y: n.y + 15, "text-anchor": "middle", class: "t2" }, g); t2.textContent = n.s;
+    g.addEventListener("click", () => select(n.go));
+  });
+  $("#mviDots").innerHTML = MVI_STEPS.map((_, i) => `<button class="dot" type="button" data-step="${i}" aria-label="Bước ${i + 1}">${i + 1}</button>`).join("");
+  $$("#mviDots .dot").forEach(b => b.onclick = () => { stopPlay("mvi"); mviGo(+b.dataset.step); });
+}
+let mviStep = 0;
+function mviGo(i) {
+  mviStep = Math.max(0, Math.min(MVI_STEPS.length - 1, i));
+  const s = MVI_STEPS[mviStep];
+  const doneEdges = new Set(MVI_STEPS.slice(0, mviStep).flatMap(x => x.e));
+  Object.keys(MVI_EDGES).forEach(id => {
+    const on = s.e.includes(id);
+    const p = $("#mvi-" + id);
+    p.classList.toggle("on", on); p.classList.toggle("done", !on && doneEdges.has(id));
+    p.setAttribute("marker-end", on ? "url(#mv-on)" : "url(#mv-a)");
+    $("#mvib-" + id).setAttribute("opacity", on ? 1 : doneEdges.has(id) ? .7 : .3);
+  });
+  Object.keys(MVI_NODES).forEach(id => $("#mvin-" + id).classList.toggle("on", s.n.includes(id)));
+  $$("#mviDots .dot").forEach((d, k) => { d.classList.toggle("on", k === mviStep); d.classList.toggle("done", k < mviStep); });
+  $("#mviCard").innerHTML = `<div class="who">Bước ${mviStep + 1}/${MVI_STEPS.length} · ${s.who}</div><h3>${s.t}</h3><p style="margin:6px 0 0">${s.d}</p>${codeBlock(s.code)}`;
+  $("#mviPrev").disabled = mviStep === 0;
+  $("#mviNext").disabled = mviStep === MVI_STEPS.length - 1;
+}
+const players = {};
+function stopPlay(k) { clearInterval(players[k]); players[k] = null; const b = $(`#${k}Play`); if (b) b.textContent = "⏵ Tự chạy"; }
+function togglePlay(k, getStep, go, len, ms) {
+  if (players[k]) return stopPlay(k);
+  if (getStep() >= len - 1) go(0);
+  $(`#${k}Play`).textContent = "⏸ Dừng";
+  players[k] = setInterval(() => { if (getStep() >= len - 1) return stopPlay(k); go(getStep() + 1); }, ms);
+}
+buildMvi(); mviGo(0);
+$("#mviPrev").onclick = () => { stopPlay("mvi"); mviGo(mviStep - 1); };
+$("#mviNext").onclick = () => { stopPlay("mvi"); mviGo(mviStep + 1); };
+$("#mviPlay").onclick = () => togglePlay("mvi", () => mviStep, mviGo, MVI_STEPS.length, 2600);
+
+/* ---------- 3. Navigation ---------- */
+const NAV_EDGES = [
+  ["scr-auth", "scr-dashboard", "Đăng nhập", "navigateToDashboard() — Auth bị xoá khỏi back stack"],
+  ["scr-auth", "scr-onboarding", "Đăng ký", "navigate(OnboardingDestination(isEditing = false))"],
+  ["scr-onboarding", "scr-goal", "Tiếp tục", "navigate(GoalDestination) { launchSingleTop = true }"],
+  ["scr-goal", "scr-dashboard", "Bắt đầu theo dõi", "navigateToDashboard()"],
+  ["scr-goal", "scr-onboarding", "Sửa hồ sơ", "màn trước là Onboarding ? popBackStack() : navigate(Onboarding(isEditing = true))"],
+  ["scr-dashboard", "scr-history", "Tab Nhật ký", "navigateToTab(History): popUpTo<Dashboard> { saveState } · restoreState"],
+  ["scr-history", "scr-dashboard", "Tab Hôm nay", "navigateToDashboard()"],
+  ["scr-dashboard", "scr-camera", "Nút chụp", "navigate(CameraDestination) { launchSingleTop = true }"],
+  ["scr-history", "scr-camera", "Nút chụp", "navigate(CameraDestination) { launchSingleTop = true }"],
+  ["scr-dashboard", "scr-analysis", "Bữa đang phân tích", "navigate(AnalysisDestination(jobId))"],
+  ["scr-history", "scr-analysis", "Bữa đang phân tích", "navigate(AnalysisDestination(jobId))"],
+  ["scr-dashboard", "scr-review", "Bữa sẵn sàng", "READY_FOR_REVIEW → navigate(ReviewDestination(jobId))"],
+  ["scr-history", "scr-review", "Bữa sẵn sàng", "navigate(ReviewDestination(jobId))"],
+  ["scr-dashboard", "scr-goal", "Tab Mục tiêu", "navigate(GoalDestination) { launchSingleTop = true }"],
+  ["scr-history", "scr-goal", "Tab Mục tiêu", "navigate(GoalDestination) { launchSingleTop = true }"],
+  ["scr-dashboard", "scr-onboarding", "Tab Hồ sơ", "navigate(OnboardingDestination(isEditing = true)) { launchSingleTop = true }"],
+  ["scr-history", "scr-onboarding", "Tab Hồ sơ", "navigate(OnboardingDestination(isEditing = true)) { launchSingleTop = true }"],
+  ["scr-camera", "scr-analysis", "Chụp xong", "navigate(Analysis(jobId)) { popUpTo<Camera> { inclusive = true } }"],
+  ["scr-analysis", "scr-review", "Xem kết quả / Tự nhập", "navigate(Review(jobId, manual)) { popUpTo<Analysis> { inclusive = true } }"],
+  ["scr-analysis", "scr-dashboard", "Để sau / Đóng", "navigateToDashboard()"],
+  ["scr-review", "scr-dashboard", "Lưu / Đóng", "navigateToDashboard()"],
+  ["scr-review", "scr-camera", "Chụp lại", "navigate(Camera) { popUpTo<Review> { inclusive = true } }", -130],
+];
+const SW = 168, SH = 62;
+function buildNav() {
+  const svg = $("#navSvg");
+  const defs = svgEl("defs", {}, svg);
+  for (const [id, col] of [["nv-a", "var(--line)"], ["nv-on", "var(--primary)"], ["nv-in", "var(--coral)"]]) {
+    const m = svgEl("marker", { id, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" }, defs);
+    svgEl("path", { d: "M0,0 L10,5 L0,10 z", fill: col }, m);
+  }
+  const gE = svgEl("g", {}, svg), gL = svgEl("g", {}, svg), gN = svgEl("g", {}, svg);
+  NAV_EDGES.forEach((e, i) => {
+    const [a, b, label, code, custom] = e;
+    const A = SCREENS[a], B = SCREENS[b];
+    const hasRev = NAV_EDGES.some(f => f[0] === b && f[1] === a);
+    const bend = custom ?? (hasRev ? 34 : 0);
+    const dx = B.x - A.x, dy = B.y - A.y, len = Math.hypot(dx, dy);
+    const px = -dy / len, py = dx / len;
+    const cx = (A.x + B.x) / 2 + px * bend, cy = (A.y + B.y) / 2 + py * bend;
+    const [x1, y1] = clipRect(A.x, A.y, cx, cy, SW + 6, SH + 6), [x2, y2] = clipRect(B.x, B.y, cx, cy, SW + 12, SH + 12);
+    const d = `M${x1},${y1} Q${cx},${cy} ${x2},${y2}`;
+    svgEl("path", { d, class: "svg-edge", id: "ne-" + i, "marker-end": "url(#nv-a)" }, gE);
+    const hit = svgEl("path", { d, class: "edge-hit" }, gE);
+    const lx = .25 * x1 + .5 * cx + .25 * x2, ly = .25 * y1 + .5 * cy + .25 * y2;
+    const t = svgEl("text", { x: lx, y: ly - 4, "text-anchor": "middle", class: "elabel", id: "nl-" + i }, gL); t.textContent = label;
+    const show = on => { t.classList.toggle("on", on || isEdgeLit(i)); if (on) $("#edgeInfo").innerHTML = `<b>${SCREENS[a].name} → ${SCREENS[b].name}</b> · ${esc(label)}: <code>${esc(code)}</code>`; };
+    hit.addEventListener("mouseenter", () => { show(true); $("#ne-" + i).classList.add("on"); });
+    hit.addEventListener("mouseleave", () => { show(false); if (!isEdgeLit(i)) $("#ne-" + i).classList.remove("on"); });
+    hit.addEventListener("click", () => select(a));
+  });
+  for (const id of SCREEN_IDS) {
+    const s = SCREENS[id];
+    const g = svgEl("g", { class: "svg-node", id: "nn-" + id, tabindex: 0, role: "button" }, gN);
+    svgEl("rect", { x: s.x - SW / 2 + 4, y: s.y - SH / 2 + 4, width: SW, height: SH, rx: 14, fill: "var(--shadow)" }, g);
+    svgEl("rect", { x: s.x - SW / 2, y: s.y - SH / 2, width: SW, height: SH, rx: 14, fill: "var(--pink-c)", class: "body", id: "nnr-" + id }, g);
+    svgEl("rect", { x: s.x - SW / 2, y: s.y - SH / 2, width: SW, height: SH, rx: 14, fill: "none", stroke: "var(--primary)", "stroke-width": 0, id: "nns-" + id }, g);
+    const t0 = svgEl("text", { x: s.x - SW / 2 + 12, y: s.y - 6, class: "t2" }, g); t0.textContent = s.n;
+    const t1 = svgEl("text", { x: s.x - SW / 2 + 32, y: s.y - 5, class: "t1" }, g); t1.textContent = s.name;
+    const t2 = svgEl("text", { x: s.x - SW / 2 + 12, y: s.y + 15, class: "t2" }, g); t2.textContent = s.vi;
+    const here = svgEl("text", { x: s.x + SW / 2 - 10, y: s.y - SH / 2 - 6, "text-anchor": "end", class: "t2", id: "nh-" + id, style: "font-weight:700;fill:var(--text);display:none" }, g); here.textContent = "▼ đang ở đây";
+    g.addEventListener("click", () => select(id));
+    g.addEventListener("keydown", ev => { if (ev.key === "Enter") select(id); });
+  }
+}
+let navSel = null;
+const isEdgeLit = i => navSel && (NAV_EDGES[i][0] === navSel || NAV_EDGES[i][1] === navSel);
+function highlightNav(id) {
+  navSel = SCREENS[id] ? id : null;
+  NAV_EDGES.forEach((e, i) => {
+    const out = navSel === e[0], inn = navSel === e[1];
+    const p = $("#ne-" + i);
+    p.classList.toggle("on", out); p.classList.toggle("in", inn && !out);
+    p.setAttribute("marker-end", out ? "url(#nv-on)" : inn ? "url(#nv-in)" : "url(#nv-a)");
+    $("#nl-" + i).classList.toggle("on", out);
+  });
+  SCREEN_IDS.forEach(s => $("#nns-" + s).setAttribute("stroke-width", s === navSel ? 4 : 0));
+}
+
+/* back stack simulator */
+let stack, jobN, lastLog;
+const nm = e => SCREENS[e.id].name + (e.arg ? `(${e.arg})` : "");
+const idxOf = (st, id) => st.map(e => e.id).lastIndexOf(id);
+const push = (st, id, arg, singleTop) => { const top = st[st.length - 1]; return singleTop && top && top.id === id && top.arg === arg ? st : [...st, { id, arg }]; };
+const toDashboard = st => { const i = idxOf(st, "scr-dashboard"); return i >= 0 ? st.slice(0, i + 1) : [{ id: "scr-dashboard" }]; };
+const toTab = (st, id) => { const i = idxOf(st, "scr-dashboard"); return push(i >= 0 ? st.slice(0, i + 1) : st, id, undefined, true); };
+const popUpToPush = (st, upTo, id, arg) => { const i = idxOf(st, upTo); return [...(i >= 0 ? st.slice(0, i) : st), { id, arg }]; };
+const topArg = st => st[st.length - 1].arg;
+const DASH_TO_DASH = "navigateToDashboard(): ";
+const dashNote = st => idxOf(st, "scr-dashboard") >= 0 ? DASH_TO_DASH + "popBackStack<Dashboard>(inclusive = false) thành công → pop về Dashboard có sẵn" : DASH_TO_DASH + "chưa có Dashboard → navigate(Dashboard) { popUpTo(graph.id) { inclusive = true } } → Dashboard thành màn duy nhất";
+const tabsFor = () => [
+  ["Tab Mục tiêu", st => push(st, "scr-goal", undefined, true), () => "navigate(GoalDestination) { launchSingleTop = true }"],
+  ["Tab Hồ sơ", st => push(st, "scr-onboarding", "edit", true), () => "navigate(OnboardingDestination(isEditing = true)) { launchSingleTop = true }"],
+];
+const NAV_ACTIONS = {
+  "scr-auth": () => [
+    ["Đăng nhập thành công", toDashboard, dashNote],
+    ["Đăng ký thành công", st => push(st, "scr-onboarding", "mới"), () => "navigate(OnboardingDestination(isEditing = false))"],
+  ],
+  "scr-onboarding": () => [
+    ["Lưu → Mục tiêu", st => push(st, "scr-goal", undefined, true), () => "saveProfile() → NavigateToGoal → navigate(GoalDestination) { launchSingleTop = true }  // singleTop chỉ chặn khi Goal đang ở đỉnh"],
+  ],
+  "scr-goal": () => [
+    ["Bắt đầu theo dõi", toDashboard, dashNote],
+    ["Sửa hồ sơ", st => { const p = st[st.length - 2]; return p && p.id === "scr-onboarding" ? st.slice(0, -1) : push(st, "scr-onboarding", "edit"); }, st => { const p = st[st.length - 2]; return p && p.id === "scr-onboarding" ? "previousBackStackEntry là Onboarding → popBackStack()" : "previousBackStackEntry không phải Onboarding → navigate(OnboardingDestination(isEditing = true))"; }],
+  ],
+  "scr-dashboard": () => [
+    ["Tab Nhật ký", st => toTab(st, "scr-history"), () => "navigateToTab(History): popUpTo<Dashboard> { saveState = true }; launchSingleTop; restoreState"],
+    ["📷 Chụp", st => push(st, "scr-camera", undefined, true), () => "navigate(CameraDestination) { launchSingleTop = true }"],
+    ["Bữa đang phân tích", st => push(st, "scr-analysis", "job-dinner"), () => "PendingMeal(ANALYZING) → navigate(AnalysisDestination(jobId))"],
+    ["Bữa sẵn sàng", st => push(st, "scr-review", "job-dinner"), () => "PendingMeal(READY_FOR_REVIEW) → navigate(ReviewDestination(jobId))"],
+    ...tabsFor(),
+  ],
+  "scr-history": () => [
+    ["Tab Hôm nay", toDashboard, dashNote],
+    ["📷 Chụp", st => push(st, "scr-camera", undefined, true), () => "navigate(CameraDestination) { launchSingleTop = true }"],
+    ["Bữa đang phân tích", st => push(st, "scr-analysis", "job-dinner"), () => "navigate(AnalysisDestination(jobId))"],
+    ["Bữa sẵn sàng", st => push(st, "scr-review", "job-dinner"), () => "navigate(ReviewDestination(jobId))"],
+    ...tabsFor(),
+  ],
+  "scr-camera": () => [
+    ["Chụp xong", st => popUpToPush(st, "scr-camera", "scr-analysis", "job-" + (++jobN)), () => "submitPhoto() → jobId → navigate(AnalysisDestination(jobId)) { popUpTo<CameraDestination> { inclusive = true } }"],
+  ],
+  "scr-analysis": () => [
+    ["Xem kết quả", st => popUpToPush(st, "scr-analysis", "scr-review", topArg(st)), () => "navigate(ReviewDestination(jobId, false)) { popUpTo<AnalysisDestination> { inclusive = true } }"],
+    ["Tự nhập món", st => popUpToPush(st, "scr-analysis", "scr-review", topArg(st) + ", manual"), () => "navigate(ReviewDestination(jobId, manualEntry = true)) { popUpTo<AnalysisDestination> { inclusive = true } }"],
+    ["Để sau", toDashboard, dashNote],
+  ],
+  "scr-review": () => [
+    ["Xác nhận & lưu", toDashboard, st => "MealSaved → messenger.show(\"Đã lưu …\") + " + dashNote(st)],
+    ["Chụp lại", st => popUpToPush(st, "scr-review", "scr-camera"), () => "navigate(CameraDestination) { popUpTo<ReviewDestination> { inclusive = true } }"],
+  ],
+};
+function simRender() {
+  const top = stack[stack.length - 1];
+  $("#simStack").innerHTML = stack.map((e, i) => `${i ? '<span class="arr">→</span>' : ""}<span class="ent${i === stack.length - 1 ? " top" : ""}">${esc(nm(e))}</span>`).join("");
+  const acts = NAV_ACTIONS[top.id]();
+  $("#simActions").innerHTML = acts.map((a, i) => `<button class="btn${i === 0 ? " primary" : ""}" type="button" data-act="${i}">${esc(a[0])}</button>`).join("") + `<button class="btn" type="button" data-act="back">◀ Back hệ thống</button>`;
+  $$("#simActions [data-act]").forEach(b => b.onclick = () => {
+    if (b.dataset.act === "back") {
+      if (stack.length === 1) { lastLog = "popBackStack() — chỉ còn 1 màn → hệ điều hành đóng app"; }
+      else { lastLog = `popBackStack() — bỏ ${nm(top)}`; stack = stack.slice(0, -1); }
+    } else {
+      const [label, fn, note] = acts[+b.dataset.act];
+      const before = stack;
+      lastLog = `${SCREENS[top.id].name}: “${label}”\n→ ${note(before)}`;
+      stack = fn(before);
+    }
+    simRender();
+  });
+  $("#simLog").textContent = lastLog;
+  SCREEN_IDS.forEach(id => { $("#nh-" + id).style.display = id === top.id ? "" : "none"; $("#nnr-" + id).setAttribute("fill", id === top.id ? "var(--yellow)" : stack.some(e => e.id === id) ? "var(--yellow-c)" : "var(--pink-c)"); });
+}
+function simReset() { stack = [{ id: "scr-auth" }]; jobN = 0; lastLog = "startDestination = AuthDestination"; simRender(); }
+buildNav(); simReset();
+$("#simReset").onclick = simReset;
+
+/* ---------- 4. DI ---------- */
+const CHAIN = [
+  ["AppGraph", "object · by lazy", "app"], ["AppContainer", "store + 6 repo + 4 use case", "di"], ["LocalAppContainer", "staticCompositionLocalOf", "di"],
+  ["containerViewModel { }", "lấy container từ Local", "common"], ["viewModel(key)", "gắn với NavBackStackEntry", "common"], ["XxxViewModel(...)", "nhận phụ thuộc qua constructor", "features"],
+];
+$("#diChain").innerHTML = CHAIN.map(([t, s, go], i) => `${i ? '<span class="to">→</span>' : ""}<button class="lk" type="button" data-go="${go}"><b>${esc(t)}</b>${esc(s)}</button>`).join("");
+const DEP_COLS = [
+  ["r-auth", "Auth", "Repository"], ["r-profile", "Profile", "Repository"], ["r-meal", "Meal", "Repository"], ["r-analysis", "MealAnalysis", "Repository"], ["r-camera", "CameraSource", "Repository"], ["r-network", "Network", "Repository"],
+  ["time", "TimeProvider", "Core"],
+  ["u-target", "NutritionTarget", "Use case"], ["u-summary", "SummarizeDay", "Use case"], ["u-streak", "Streak", "Use case"], ["u-validate", "Validate", "Use case"],
+];
+const GROUP_COLOR = { Repository: "var(--mint)", Core: "var(--sky)", "Use case": "var(--yellow)" };
+function buildMatrix() {
+  const groups = [];
+  DEP_COLS.forEach(c => { const g = groups[groups.length - 1]; if (g && g[0] === c[2]) g[1]++; else groups.push([c[2], 1]); });
+  let h = `<thead><tr class="grp"><th></th>${groups.map(([g, n]) => `<th colspan="${n}" style="color:${GROUP_COLOR[g]}">${g}</th>`).join("")}<th></th><th></th></tr>`;
+  h += `<tr><th style="text-align:left">ViewModel</th>${DEP_COLS.map((c, j) => `<th data-col="${j}" data-go="${c[0]}">${c[1]}</th>`).join("")}<th>Σ</th><th style="text-align:left">Nav args</th></tr></thead><tbody>`;
+  SCREEN_IDS.forEach((id, i) => {
+    const s = SCREENS[id];
+    h += `<tr data-row="${i}"><th data-go="${id}">${s.name}ViewModel</th>${DEP_COLS.map((c, j) => s.deps.includes(c[0]) ? `<td class="hit" data-col="${j}" style="--cc:${GROUP_COLOR[c[2]]}"><span></span></td>` : `<td data-col="${j}"></td>`).join("")}<td><b>${s.deps.length}</b></td><td class="args">${s.args || "—"}</td></tr>`;
+  });
+  $("#mx").innerHTML = h + "</tbody>";
+  const mx = $("#mx");
+  mx.addEventListener("mouseover", e => {
+    const cell = e.target.closest("td,th"); if (!cell) return;
+    $$(".hov", mx).forEach(x => x.classList.remove("hov"));
+    const col = cell.dataset.col, row = cell.closest("tr").dataset.row;
+    if (col != null) $$(`[data-col="${col}"]`, mx).forEach(x => x.classList.add("hov"));
+    if (row != null) cell.closest("tr").classList.add("hov");
+  });
+  mx.addEventListener("mouseleave", () => $$(".hov", mx).forEach(x => x.classList.remove("hov")));
+}
+function highlightMatrix(id) {
+  const mx = $("#mx"); if (!mx) return;
+  $$("tbody tr", mx).forEach(tr => tr.style.outline = "");
+  const i = SCREEN_IDS.indexOf(id);
+  if (i >= 0) $(`tbody tr[data-row="${i}"]`, mx).style.outline = "3px solid var(--primary)";
+}
+buildMatrix();
+
+/* ---------- 5. Pipeline sequence ---------- */
+const LANES = [["User", null], ["CameraVM", "scr-camera"], ["AnalysisRepo", "r-analysis"], ["Store", "store"], ["AnalysisVM", "scr-analysis"], ["ReviewVM", "scr-review"], ["MealRepo", "r-meal"], ["DashboardVM", "scr-dashboard"]];
+const L = Object.fromEntries(LANES.map((l, i) => [l[0], i]));
+const SEQ = [
+  ["User", "CameraVM", "ShutterClicked", "Bấm nút chụp. <code>submit()</code> đặt <code>isSubmitting = true</code> (chặn bấm đúp).", { screen: "Camera" }],
+  ["CameraVM", "CameraVM", "cameraSource.capturePhoto()", "<code>MockCameraSource</code> trả ảnh khung ngắm (mâm cơm) sau 250ms. Chế độ thư viện thì lấy ảnh đã chọn.", {}],
+  ["CameraVM", "AnalysisRepo", "submitPhoto(photo, now)", "Upload giả 700ms. <code>MealType.forTime(now)</code> quyết định đây là bữa gì.", {}],
+  ["AnalysisRepo", "Store", "jobs += RECOGNIZING · meals += PendingMeal", "Ghi 3 thứ vào store: kết quả AI sẽ trả (<code>aiResults</code>), job mới (<code>RECOGNIZING</code>), và một <code>PendingMeal(ANALYZING)</code> vào nhật ký.", { job: "RECOGNIZING", pending: "ANALYZING" }],
+  ["AnalysisRepo", "AnalysisRepo", "scope.launch { startSimulation }", "Chạy trong <code>applicationScope</code> (từ AppContainer), không phải viewModelScope → người dùng rời màn hình job vẫn chạy.", {}],
+  ["AnalysisRepo", "CameraVM", "return jobId", "CameraVM gửi effect <code>NavigateToAnalysis(jobId)</code>; NavHost điều hướng với <code>popUpTo&lt;Camera&gt;(inclusive)</code>.", { screen: "Analysis" }, true],
+  ["Store", "DashboardVM", "meals emit", "Dashboard vẫn sống dưới back stack và đang collect <code>observeRange</code> → thẻ “AI đang “nếm thử”…” xuất hiện, chuông +1.", { dash: "thẻ đang phân tích" }],
+  ["AnalysisVM", "Store", "observeJob(jobId)", "AnalysisVM subscribe. <code>onStart</code> sẽ khởi động lại mô phỏng nếu job chưa terminal (trường hợp bữa tối seed). UI: Upload ✓ · Queue ✓ · Nhận diện ●.", {}],
+  ["Store", "AnalysisVM", "stage = CALCULATING · 4 món", "+3,5s. Danh sách món xuất hiện kèm vùng nhận diện trên ảnh. <i>Nhánh lỗi:</i> cứ ảnh thứ 2 → <code>FAILED</code> + PendingStatus.FAILED → nút Thử lại gọi <code>retry()</code>.", { job: "CALCULATING" }],
+  ["Store", "AnalysisVM", "stage = COMPLETED", "+3,5s. <code>PendingMeal.status = READY_FOR_REVIEW</code> — thẻ trên Dashboard đổi thành “Xong rồi! Chạm để xác nhận”.", { job: "COMPLETED", pending: "READY_FOR_REVIEW", dash: "thẻ chờ xác nhận" }],
+  ["User", "AnalysisVM", "ReviewResult", "Effect <code>NavigateToReview(jobId, false)</code> + <code>popUpTo&lt;Analysis&gt;(inclusive)</code>.", { screen: "Review" }],
+  ["ReviewVM", "Store", "observeJob(jobId).first()", "Lấy job một lần → <code>loadJob</code> chuyển detections thành <code>EditableFood</code>. Đồng thời combine <code>observeDay</code> + target → <code>remainingBeforeKcal</code>.", {}],
+  ["User", "ReviewVM", "GramsChanged · Save", "Sửa gram → kcal tính lại theo per100g. Save → validate (tên, khối lượng).", {}],
+  ["ReviewVM", "MealRepo", "saveMeal(jobId, items, isEdited)", "Trễ giả lập 600ms. <code>isEdited</code> = có khác kết quả AI gốc không.", {}],
+  ["MealRepo", "Store", "meals: −Pending +Confirmed", "Một lần <code>update</code> nguyên tử: xoá PendingMeal cùng jobId, thêm ConfirmedMeal (“Cơm, Thịt kho &amp; 2 món khác”).", { pending: "— (đã thay)", confirmed: "+1 ConfirmedMeal" }],
+  ["Store", "DashboardVM", "meals emit → summary mới", "Dashboard tự tính lại: 1.663 + 819 kcal. ReviewVM gửi <code>MealSaved</code> → snackbar “Đã lưu bữa tối · 819 kcal” + <code>navigateToDashboard()</code>.", { screen: "Dashboard", dash: "+819 kcal" }],
+];
+const LX = i => 64 + i * 124, SEQ_TOP = 64, SEQ_ROW = 38;
+let seqStep = 0;
+function buildSeq() {
+  const svg = $("#seqSvg");
+  const H = SEQ_TOP + SEQ.length * SEQ_ROW + 20;
+  svg.setAttribute("viewBox", `0 0 1000 ${H}`);
+  svg.style.minWidth = "760px";
+  const defs = svgEl("defs", {}, svg);
+  for (const [id, col] of [["sq-a", "var(--line)"], ["sq-on", "var(--primary)"]]) {
+    const m = svgEl("marker", { id, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" }, defs);
+    svgEl("path", { d: "M0,0 L10,5 L0,10 z", fill: col }, m);
+  }
+  LANES.forEach(([name, go], i) => {
+    svgEl("line", { x1: LX(i), x2: LX(i), y1: 44, y2: H - 8, class: "seq-life" }, svg);
+    const g = svgEl("g", { class: "svg-node seq-n", style: go ? "" : "cursor:default" }, svg);
+    svgEl("rect", { x: LX(i) - 56, y: 10, width: 112, height: 32, rx: 10, fill: go ? "var(--surface-2)" : "var(--yellow-c)", stroke: "var(--line)", "stroke-width": 2 }, g);
+    const t = svgEl("text", { x: LX(i), y: 31, "text-anchor": "middle" }, g); t.textContent = name;
+    if (go) g.addEventListener("click", () => select(go));
+  });
+  SEQ.forEach(([a, b, label, , , ret], k) => {
+    const y = SEQ_TOP + k * SEQ_ROW + 14, x1 = LX(L[a]), x2 = LX(L[b]);
+    const g = svgEl("g", { class: "seq-m", id: "sq-" + k }, svg);
+    let d, tx, anchor = "middle";
+    if (a === b) { d = `M${x1},${y - 6} h34 v14 h-30`; tx = x1 + 42; anchor = "start"; }
+    else { const dir = Math.sign(x2 - x1); d = `M${x1},${y} L${x2 - dir * 4},${y}`; tx = (x1 + x2) / 2; }
+    svgEl("rect", { x: Math.min(x1, x2) - 10, y: y - 18, width: Math.abs(x2 - x1) + 60, height: SEQ_ROW - 2, fill: "transparent" }, g);
+    svgEl("path", { d, "marker-end": "url(#sq-a)", "stroke-dasharray": ret ? "5 4" : "" }, g);
+    const t = svgEl("text", { x: tx, y: y - 6, "text-anchor": anchor }, g); t.textContent = label;
+    const n = svgEl("text", { x: 8, y: y + 4, class: "num" }, g); n.textContent = k + 1;
+    g.addEventListener("click", () => { stopPlay("seq"); seqGo(k); });
+  });
+}
+function seqGo(k) {
+  seqStep = Math.max(0, Math.min(SEQ.length - 1, k));
+  SEQ.forEach((s, i) => {
+    const g = $("#sq-" + i);
+    g.classList.toggle("on", i === seqStep); g.classList.toggle("past", i < seqStep);
+    $("path", g).setAttribute("marker-end", i === seqStep ? "url(#sq-on)" : "url(#sq-a)");
+  });
+  const snap = { screen: "Camera", job: "—", pending: "—", confirmed: "—", dash: "—" };
+  for (let i = 0; i <= seqStep; i++) Object.assign(snap, SEQ[i][4]);
+  const changed = SEQ[seqStep][4];
+  const [a, b, label, desc] = SEQ[seqStep];
+  const cell = (k, t) => `<div class="${k in changed ? "chg" : ""}">${t}<b>${esc(snap[k])}</b></div>`;
+  $("#seqCard").innerHTML = `<div class="stepcard"><div class="who">Bước ${seqStep + 1}/${SEQ.length} · ${a} → ${b}</div><h3>${esc(label)}</h3><p style="margin:6px 0 0">${desc}</p></div>
+    <div class="snap">${cell("screen", "Màn hình đang mở")}${cell("job", "store.jobs[jobId].stage")}${cell("pending", "PendingMeal.status")}${cell("confirmed", "ConfirmedMeal")}${cell("dash", "Dashboard (dưới back stack)")}</div>`;
+  $("#seqCount").textContent = `${seqStep + 1} / ${SEQ.length}`;
+  $("#seqPrev").disabled = seqStep === 0;
+  $("#seqNext").disabled = seqStep === SEQ.length - 1;
+}
+buildSeq(); seqGo(0);
+$("#seqPrev").onclick = () => { stopPlay("seq"); seqGo(seqStep - 1); };
+$("#seqNext").onclick = () => { stopPlay("seq"); seqGo(seqStep + 1); };
+$("#seqPlay").onclick = () => togglePlay("seq", () => seqStep, seqGo, SEQ.length, 2400);
+
+/* ---------- 6. Responsive ---------- */
+const PRESETS = [["Small phone", 320, 640], ["Android", 384, 760], ["Thiết kế", 390, 844], ["Phone ngang", 844, 390], ["Tablet dọc", 834, 1194], ["Tablet ngang", 1194, 834], ["Desktop", 1280, 800]];
+$("#rsPresets").innerHTML = PRESETS.map(([n, w, h]) => `<button class="btn" type="button" data-w="${w}" data-h="${h}">${n}<br><small>${w}×${h}</small></button>`).join("");
+$$("#rsPresets .btn").forEach(b => b.onclick = () => { $("#rsW").value = b.dataset.w; $("#rsH").value = b.dataset.h; rsRender(); });
+function windowLayout(w, h) {
+  const widthClass = w < 600 ? "COMPACT" : w < 840 ? "MEDIUM" : "EXPANDED";
+  const heightClass = h < 480 ? "COMPACT" : h < 900 ? "MEDIUM" : "EXPANDED";
+  const isNarrow = w < 360, isShort = heightClass === "COMPACT";
+  const rail = widthClass !== "COMPACT" || isShort;
+  const two = widthClass === "EXPANDED" || (isShort && w >= 560);
+  const gutter = isNarrow ? 16 : (widthClass === "COMPACT" || isShort) ? 20 : widthClass === "MEDIUM" ? 28 : 32;
+  return { widthClass, heightClass, isNarrow, isShort, rail, two, gutter };
+}
+function rsRender() {
+  const w = +$("#rsW").value, h = +$("#rsH").value;
+  $("#rsWv").textContent = w; $("#rsHv").textContent = h;
+  const L_ = windowLayout(w, h);
+  const box = $(".stage-rs");
+  const maxW = Math.max(200, box.clientWidth - 40), maxH = 420;
+  const k = Math.min(maxW / w, maxH / h, 1);
+  const f = $("#rsFrame");
+  f.style.width = w * k + "px"; f.style.height = h * k + "px";
+  const railW = L_.rail ? 80 : 0;
+  const avail = w - railW;
+  const maxContent = L_.two ? 1180 : 640;
+  const cw = Math.min(avail - 2 * L_.gutter, maxContent);
+  const left = railW + (avail - cw) / 2;
+  const bottomPad = L_.rail ? 10 : 50;
+  f.innerHTML = `${L_.rail ? `<div class="rail" style="width:${railW * k}px"><i class="cam"></i><i></i><i></i><i></i><i></i></div>` : ""}
+    <div class="content" style="left:${left * k}px;width:${cw * k}px;bottom:${bottomPad}px">${L_.two ? `<div class="pane a">Pane 1<br>ảnh · tóm tắt</div><div class="pane b">Pane 2<br>chi tiết · danh sách</div>` : `<div class="pane a">1 cột<br>≤ ${maxContent}dp</div>`}</div>
+    ${L_.rail ? "" : `<div class="bar"><i></i><i></i><i class="cam"></i><i></i><i></i></div>`}`;
+  const b = v => `<dd class="${v ? "t" : "f"}">${v}</dd>`;
+  $("#rsOut").innerHTML = `<dt>widthClass</dt><dd>${L_.widthClass}</dd><dt>heightClass</dt><dd>${L_.heightClass}</dd><dt>isNarrow</dt>${b(L_.isNarrow)}<dt>isShort</dt>${b(L_.isShort)}<dt>usesNavigationRail</dt>${b(L_.rail)}<dt>usesTwoPanes</dt>${b(L_.two)}<dt>gutter</dt><dd>${L_.gutter}dp</dd><dt>nội dung</dt><dd>${Math.round(cw)}dp (max ${maxContent})</dd>`;
+}
+$("#rsW").oninput = rsRender; $("#rsH").oninput = rsRender;
+new ResizeObserver(rsRender).observe($(".stage-rs"));
+
+/* ---------- 7. Build: test cards ---------- */
+$("#testCards").innerHTML = Object.entries(TESTS).map(([id, t]) => `<div class="card" data-go="${id}" role="button" tabindex="0"><span class="pill tag">${t.kind}</span><h3>${esc(t.file.split("/").pop())}</h3><p style="margin:6px 0 0;font-size:13.5px;color:var(--muted)">${t.what}</p><p style="margin:6px 0 0;font-size:12px"><b>${t.cases.length}</b> test · <code>${t.file.split("/")[0]}</code></p></div>`).join("");
+
+/* ---------- Theme toggle ---------- */
+$("#themeBtn").onclick = () => {
+  const root = document.documentElement;
+  const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  root.dataset.theme = dark ? "light" : "dark";
+  try { localStorage.setItem("vf-arch-theme", root.dataset.theme); } catch (e) {}
+};
+try { const t = localStorage.getItem("vf-arch-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+
+/* ---------- init ---------- */
+renderEmpty();
+showTab(location.hash.slice(1));
+window.addEventListener("hashchange", () => showTab(location.hash.slice(1)));
+</script>
+</body>
+</html>
