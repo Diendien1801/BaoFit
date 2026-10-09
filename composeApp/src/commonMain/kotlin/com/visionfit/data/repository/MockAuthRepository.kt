@@ -44,7 +44,7 @@ internal class MockAuthRepository(
             userId = "user-${store.accounts.value.size + 1}",
             email = normalized,
             password = password,
-            displayName = displayNameFrom(normalized),
+            displayName = displayNameFromEmail(normalized),
         )
         store.accounts.update { it + account }
         return signIn(account)
@@ -64,12 +64,4 @@ internal class MockAuthRepository(
         _session.value = session
         return AuthResult.Success(session)
     }
-
-    /** "minh.tran@x.vn" → "Minh". */
-    private fun displayNameFrom(email: String): String =
-        email.substringBefore('@')
-            .split('.', '_', '-', '+')
-            .firstOrNull { it.isNotBlank() }
-            ?.replaceFirstChar { it.uppercase() }
-            ?: "Bạn"
 }
