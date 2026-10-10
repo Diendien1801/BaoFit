@@ -1,6 +1,7 @@
 # VisionFit KMP: Nhật ký học UI (Clean Architecture + Compose Multiplatform)
 
 > File này ghi lại một chuỗi buổi học giữa user và Claude.
+> Buổi 1: bước 1 → 5. Buổi 2 (2026-10-10): dạy lại bước 5, làm rõ DI, bước 6.1 → 6.3.
 > Dán file này vào một cuộc chat mới để Claude tiếp tục dạy đúng chỗ đã dừng.
 
 ---
@@ -38,14 +39,24 @@
 
 ## 1. Bối cảnh dự án
 
-- **Repo:** `C:\Users\dient\IdeaProjects\microservicePractice\visionfit-kmp` (GitHub: Diendien1801/BaoFit)
+- **Repo:** GitHub `Diendien1801/BaoFit`. User học trên nhiều máy:
+  - Windows: `C:\Users\dient\IdeaProjects\microservicePractice\visionfit-kmp`
+  - Mac: `/Users/admin/Dien/backend/BaoFit`
+  - Đầu buổi nên `git pull` và kiểm tra lại trạng thái repo.
 - **Ứng dụng:** VisionFit, app chụp ảnh bữa ăn để AI ước lượng dinh dưỡng. Giao diện tiếng Việt.
 - **Công nghệ:**
   - Kotlin 2.4.20, Compose Multiplatform 1.12.1, Material3 1.9.0
   - navigation-compose 2.9.2, lifecycle 2.11.0
   - Gradle 9.7.1, JDK 21
 - **Nền tảng đích:** Android, iOS, Desktop (JVM)
-- **Dữ liệu:** hiện dùng **repository giả (Mock)**. Backend thật là một project Spring Boot microservices riêng ở `C:\Users\dient\IdeaProjects\visionfit-backend\`, user tự xây, `identity-service` phụ trách auth. File `domain/repository/Repositories.kt` chính là hợp đồng mà backend phải đáp ứng.
+- **Dữ liệu:**
+  - **Auth đã nối backend thật** (commit `607f553`): `RemoteAuthRepository` dùng Ktor gọi `identity-service`, lưu token bằng `TokenStore`.
+  - Các repository còn lại vẫn là **Mock**.
+  - Backend thật là project Spring Boot microservices riêng (Windows: `C:\Users\dient\IdeaProjects\visionfit-backend\`), do user tự xây, `identity-service` phụ trách auth.
+  - File `domain/repository/Repositories.kt` chính là hợp đồng mà backend phải đáp ứng.
+- **Chọn bếp trong `AppContainer`** (`di/AppContainer.kt:44-45`): `if (apiBaseUrl == null) MockAuthRepository(store) else RemoteAuthRepository(...)`.
+  - `AppGraph` (App.kt:66) truyền `apiBaseUrl = defaultApiBaseUrl`. Đây là `expect/actual` theo nền tảng: Android `http://10.0.2.2:8081/`, JVM và iOS `http://localhost:8081/`. Vì vậy app thật mặc định dùng bếp thật.
+  - Test và preview gọi `AppContainer()` không có URL, nên dùng bếp giả.
 - **Cấu trúc package** (`composeApp/src/commonMain/kotlin/com/visionfit/`):
   ```
   App.kt         điểm vào chung cho mọi nền tảng
@@ -57,14 +68,16 @@
                  goal/, dashboard/, history/, camera/, analysis/, review/
   ```
 
-**Trạng thái màn Auth lúc kết thúc buổi học (quan trọng):**
-- User đang **tự viết lại giao diện đăng nhập** để luyện tập.
-- Bản gốc của `presentation/auth/AuthScreen.kt`, `auth/components/AuthForm.kt` và `auth/components/AuthHero.kt` đang bị **comment toàn bộ** (bản gốc vẫn còn trong lịch sử git).
-- `presentation/auth/AuthPracticeScreen.kt` (file mới) chứa `AuthRoute` thật, kèm một `AuthScreen` tạm thời: màn tím có nút "Vào app bằng tài khoản demo".
-- `AuthScreen.kt` hiện **thiếu dòng `package`**. File chỉ chứa `myBlankScreen()` để user thử nghiệm thứ tự `Modifier` (padding trước hay background trước) và `LazyColumn`.
-- Khi user viết `AuthScreen` thật trong package `com.visionfit.presentation.auth`, cần:
-  - **xóa hàm `AuthScreen` tạm** trong `AuthPracticeScreen.kt` để không bị trùng tên
-  - **giữ nguyên chữ ký hàm** `AuthScreen(state: AuthUiState, onEvent: (AuthEvent) -> Unit, modifier: Modifier = Modifier)`
+**Trạng thái màn Auth (cập nhật buổi 2, ngày 2026-10-10):**
+- Bản gốc **đầy đủ** đã được khôi phục, không còn bị comment:
+  - `presentation/auth/AuthScreen.kt` (448 dòng): `AuthRoute` ở dòng 87-106, `AuthScreen` ở dòng 109
+  - `auth/components/AuthForm.kt`, `auth/components/AuthHero.kt`
+- `AuthPracticeScreen.kt` và `myBlankScreen()` **không còn**.
+- **Cách luyện tập đã thống nhất** (bài tập 3 của bước 6.3):
+  - User tạo `presentation/auth/practice/MyAuthScreen.kt` với chữ ký `MyAuthScreen(state: AuthUiState, onEvent: (AuthEvent) -> Unit, modifier: Modifier = Modifier)`.
+  - Đổi **đúng 1 dòng** `AuthScreen(...)` → `MyAuthScreen(...)` ở dòng 105 trong `AuthRoute`.
+  - Bản gốc `AuthScreen` giữ nguyên để đối chiếu. Học xong thì trả dòng 105 lại như cũ.
+  - Nếu user chưa làm bước này, hãy nhắc làm trước khi dạy 6.4.
 
 ---
 
@@ -76,12 +89,15 @@
 | 2 | Theme (Color, Type, Dimens, Theme) | ✅ Đã dạy. User nói "đã thấm" |
 | 3 | Khung MVI (MviViewModel, CollectEffects) + "MVI là gì" | ✅ Đã dạy |
 | 4 | Navigation (Routes, NavHost) + "ai kích hoạt navigate" (chuỗi 4 trạm, ví dụ Camera và Auth) | ✅ Đã dạy. User nói "hiểu cấu hình nav rồi" |
-| 5 | Domain → Data → DI | ✅ Đã dạy. **User chưa xác nhận đã hiểu.** Lượt kế tiếp nên hỏi lại |
-| 6 | Feature Auth trọn vẹn: Contract → ViewModel → Route → **user tự viết Screen** | ⏭ **TIẾP THEO** |
+| 5 | Domain → Data → DI | ✅ Đã dạy lại ở buổi 2. User hỏi thêm về DI và CompositionLocal, đã giải thích (xem 3.5b) |
+| 6.1 | `AuthContract` | ✅ Đã dạy |
+| 6.2 | `AuthViewModel` | ✅ Đã dạy. User nói "hiểu rồi" |
+| 6.3 | `AuthRoute` (tách Route và Screen) | ✅ Đã dạy. **Chưa xác nhận** checkpoint |
+| 6.4 | **User tự viết `MyAuthScreen`** | ⏭ **TIẾP THEO** |
 | 7 | Design system components (BrutalSurface, VfPrimaryButton, icon, thứ tự Modifier) | Chưa |
 | 8 | Hoàn thiện App shell (AppMessenger/Snackbar, WindowLayout responsive, insets, VisionFitPreview) | Chưa |
 | 9 | Test (FlowTests cho ViewModel, UI test, screenshot test) | Chưa |
-| 10 | Thay Mock bằng backend thật (Ktor, RemoteAuthRepository) | Chưa |
+| 10 | Thay Mock bằng backend thật (Ktor, RemoteAuthRepository) | **Code đã có** (commit `607f553`). Khi tới bước này, hãy dạy bằng cách đọc và review code có sẵn, không viết lại |
 
 ---
 
@@ -419,8 +435,8 @@ DI     ⑦ AppContainer.kt → ⑧ ViewModelFactory.kt → ⑨ sửa App.kt → 
   - trùng email → `EMAIL_ALREADY_REGISTERED`
   - `store.accounts.update { it + account }` rồi `signIn`
 - `signIn` tạo `UserSession`, gán vào `_session`, trả về `Success`.
-- `displayNameFrom` lấy tên từ email: "minh.tran@x.vn" → "Minh".
-- Khi có backend thật: viết `RemoteAuthRepository(http) : AuthRepository` gọi gateway. Các file khác giữ nguyên.
+- `displayNameFromEmail` lấy tên từ email: "minh.tran@x.vn" → "Minh". Hàm này đã được tách ra `data/repository/DisplayNames.kt` để Mock và Remote dùng chung.
+- Bếp thứ hai đã có: `RemoteAuthRepository(client, tokenStore) : AuthRepository` (`RemoteAuthRepository.kt:35`). **Một thực đơn, hai bếp**, nên các file khác giữ nguyên.
 
 **DI là gì:** class không tự tạo những thứ nó cần, mà nhận chúng qua constructor.
 - Cách đúng: `AuthViewModel(authRepository: AuthRepository, validateCredentials)`.
@@ -430,7 +446,7 @@ DI     ⑦ AppContainer.kt → ⑧ ViewModelFactory.kt → ⑨ sửa App.kt → 
 - `class AppContainer(timeProvider = SystemTimeProvider(), applicationScope = ...)`
 - Bên trong:
   - `private val store = InMemoryVisionFitStore(timeProvider)`
-  - `val authRepository: AuthRepository = MockAuthRepository(store)` ← **chỗ duy nhất trong app có chữ Mock**, đổi sang backend thật ở đúng dòng này
+  - `val authRepository: AuthRepository = if (apiBaseUrl == null) MockAuthRepository(store) else RemoteAuthRepository(...)` (dòng 44-45) ← **chỗ duy nhất trong app viết tên bếp cụ thể**
   - `val validateCredentials = ValidateCredentialsUseCase()`
 - Kiểu khai báo là interface, nên bên ngoài không biết bên trong là Mock.
 - Tham số có giá trị mặc định để test truyền vào được. `applicationScope` dành cho việc phân tích ảnh chạy nền.
@@ -465,6 +481,145 @@ Test tạo trực tiếp các mảnh, không cần giao diện: `AuthViewModel(a
 **Bài tập đã giao:**
 1. Đăng nhập `locked@visionfit.vn` với **sai** mật khẩu thì nhận lỗi gì, so với khi **đúng** mật khẩu, và vì sao?
 2. Viết `FakeAuthRepository` mà `login` luôn trả `Failure(NETWORK)`. Tạm đổi 1 dòng trong `AppContainer` để dùng nó, chạy thử nút demo, rồi trả lại như cũ.
+3. Ở `identity-service`, khi user bị khóa mà nhập sai mật khẩu thì server trả mã HTTP gì? Server có lộ việc tài khoản bị khóa không?
+
+---
+
+### Bước 5b: Làm rõ DI và CompositionLocal (buổi 2, do user hỏi)
+
+**Cách hiểu ban đầu của user:** tạo trạm phát `LocalAppContainer` chứa các thứ cần DI, bọc ngoài App, khởi tạo trước, rồi trong app chỗ nào cần thì lấy và truyền qua tham số.
+
+User hiểu đúng khoảng 70%. Đã chỉnh 3 chỗ:
+
+1. **`staticCompositionLocalOf { error(...) }` chỉ tạo kênh, chưa phát gì.** Có 4 thao tác:
+   - ① tạo kênh: `AppContainer.kt:58`
+   - ② tạo nội dung `AppContainer(...)`: `App.kt:66`, dùng `by lazy`
+   - ③ phát `LocalAppContainer provides container`: `App.kt:37`
+   - ④ bắt sóng `LocalAppContainer.current`: **chỉ duy nhất** ở `ViewModelFactory.kt:18`
+
+   `{ error(...) }` là giá trị mặc định khi không có ai phát, nên quên phát thì crash kèm thông báo rõ ràng.
+2. **Container là tham số có giá trị mặc định của `VisionFitApp`.** Test có thể thay toàn bộ bếp. Ví dụ thật ở `jvmTest/.../AppFlowUiTest.kt:37-38`: `VisionFitApp(AppContainer(FixedTimeProvider(now)))`. Khi container được tạo thì mọi `val` bên trong (store, repository, use case) được tạo cùng lúc.
+3. **(Quan trọng nhất) Không phải ai cũng bắt sóng.** Có 2 cơ chế khác nhau:
+   ```
+   App.kt ──(phát sóng)──► Route ──(constructor)──► ViewModel
+            = xe chở hàng          = giao hàng tận tay (DI thật sự)
+   ```
+   - ViewModel **không thể** đọc `LocalXxx.current`, vì nó không phải `@Composable`.
+   - ViewModel cũng **không nên** nhận cả container, vì như vậy sẽ giấu đi những gì nó thực sự cần.
+   - Screen không biết container tồn tại.
+
+   | Ai | Biết container? | Nhận gì |
+   |---|---|---|
+   | `App.kt` | Có (tạo và phát) | |
+   | `XRoute` | Có (qua `containerViewModel`) | |
+   | `XViewModel` | Không | Đúng các repository và use case nó cần |
+   | `XScreen` | Không | `state`, `onEvent` |
+
+- **So sánh với Spring:**
+  - `AppContainer` tương ứng `ApplicationContext`
+  - các `val` tương ứng `@Bean`
+  - constructor của ViewModel tương ứng constructor injection
+  - Khác biệt: ở đây ta tự viết tay trong `containerViewModel { ... }`, không có framework tự tiêm.
+
+**Bài tập nhỏ (Claude đã chữa):** `private val repo = AppGraph.container.authRepository` bên trong ViewModel có 2 vấn đề:
+1. `AppFlowUiTest` truyền vào container dùng bếp giả, nhưng ViewModel lén dùng bếp thật, nên test chập chờn.
+2. Constructor rỗng, nên không đưa Fake vào để test riêng được, và phụ thuộc bị giấu đi.
+
+Nguyên tắc rút ra: **class nhận phụ thuộc từ bên ngoài, không tự đi lấy.**
+
+---
+
+### Bước 6.1: `presentation/auth/AuthContract.kt` (hợp đồng giữa Screen và ViewModel)
+
+- **Vấn đề:** nếu dùng nhiều `remember` rời rạc thì sẽ có 2 biến nói cùng một chuyện (`isRegister` và `mode`), lỗi là String nên không biết thuộc ô nào hay thuộc server, và không có danh sách "người dùng làm được gì".
+- **Giải pháp:** một file chỉ chứa kiểu dữ liệu (State, Event, Effect), không có logic.
+- **Vì sao viết sau bước 5:** file import `AuthError` (Domain) và `CredentialError` (use case). Domain không bao giờ import Contract.
+- **Từng khối:**
+  - `AuthMode` (dòng 6): một màn hình, hai chế độ.
+  - `LegalDocument(url)` (dòng 8): Screen gửi `LegalLinkClicked(TERMS)`, không gửi chuỗi URL. URL chỉ nằm ở một chỗ.
+  - `AuthUiState` (dòng 13-28):
+    - dữ liệu nhập
+    - lỗi từng ô (`CredentialError?`, `null` là không lỗi)
+    - lỗi server (`submitError: AuthError?`, hiện banner)
+    - 2 cờ loading riêng cho 2 nút
+    - mọi field đều có mặc định, nên `AuthUiState()` chính là màn hình lúc mới mở
+    - `isRegister` là `get()`, được **tính từ `mode`**, không lưu riêng, nên không bao giờ mâu thuẫn
+  - `AuthEvent` (dòng 30-39): `data class` khi có dữ liệu, `data object` khi không. Tên event mô tả việc đã xảy ra (`EmailChanged`), không phải mệnh lệnh. **Không có event `NavigateXxx`.**
+  - `AuthEffect` (dòng 41-47): chuyển màn, `OpenUrl` (ViewModel không mở được trình duyệt), `ResetLinkSent`/`ResetLinkFailed` (nếu để trong State thì xoay máy là hiện lại).
+
+**Bài tập đã giao:**
+1. Đoán State và Effect cho từng event. Đã có đáp án trong bài 6.2.
+2. Thêm ô tick "Ghi nhớ đăng nhập": cần thêm gì vào State, Event, Effect?
+3. Nếu `isRegister` là `val ... = false` trong constructor thì có bug gì? Hãy chỉ ra một dòng `copy` cụ thể.
+
+---
+
+### Bước 6.2: `presentation/auth/AuthViewModel.kt`
+
+- **Vấn đề:** hàm `submit` viết ngây thơ (`launch { isSubmitting = true; login(currentState...); if Success navigate }`) có 4 lỗi:
+  1. bấm 2 lần thì gọi server 2 lần
+  2. không kiểm tra đầu vào
+  3. đọc `currentState` **sau khi chờ mạng**, nên đổi chế độ giữa chừng là đi nhầm màn
+  4. nhánh `Failure` không làm gì, nút quay mãi
+- **Vì sao viết sau Contract:** ViewModel import `MviViewModel` (bước 3), `AuthRepository`/`AuthResult`/`ValidateCredentialsUseCase` (bước 5), và dùng Contract (6.1). Nó là chỗ gặp nhau của mọi thứ đã học.
+- **① Constructor** (dòng 10-13): đoạn 2 của DI. `AuthUiState()` là giá trị ban đầu của hộp.
+- **② `onEvent`** (dòng 15-36) hoạt động như tổng đài:
+  - event đơn giản xử lý inline bằng `updateState`, event phức tạp gọi hàm `private`
+  - `sealed` nên quên nhánh nào là compiler báo
+  - `ModeSelected`: **giữ email và password**, xóa `confirmPassword` và các lỗi
+  - `XChanged`: theo mẫu "cập nhật giá trị, xóa lỗi ô đó, xóa banner"
+  - `LegalLinkClicked` chỉ `sendEffect(OpenUrl)`
+- **③ `submit()`** (dòng 38-72), đọc theo dòng thời gian:
+  1. chụp ảnh `val state = currentState`
+  2. `isSubmitting` đang true thì return (sửa lỗi 1)
+  3. validate với `confirmation = confirmPassword.takeIf { isRegister }` (sửa lỗi 2)
+  4. không hợp lệ thì gán cả 3 lỗi rồi return, không gọi mạng
+  5. `isSubmitting = true`, xóa banner
+  6. `launch` gọi register hoặc login, **dùng ảnh chụp `state`** (sửa lỗi 3: người vừa đăng ký mà đổi tab giữa chừng vẫn được đưa tới Onboarding)
+  7. `Success` thì tắt loading và gửi effect; `Failure` thì tắt loading và gán `submitError` (sửa lỗi 4)
+- **④ `requestPasswordReset()`** (dòng 74-89): cùng khuôn với `submit` nhưng nhỏ hơn.
+  - chỉ kiểm tra email: `validateCredentials(email, "", null).email`, lỗi mật khẩu sinh ra cũng bị bỏ qua
+  - kết quả chỉ là Effect
+
+**Bài tập đã giao:**
+1. `ModeSelected` không xóa `emailError`. Đây là cố ý hay sót? Hãy nêu lý lẽ cho cả hai phía.
+2. Đang `isSubmitting` mà người dùng bấm "Quên mật khẩu?" thì sao? Có nên chặn không?
+3. Viết nhánh `when` cho event "Ghi nhớ đăng nhập". Có cần truyền giá trị này xuống `login()` không? Nếu có thì phải sửa ở những tầng nào?
+
+---
+
+### Bước 6.3: `AuthRoute` (`AuthScreen.kt:87-106`)
+
+- **Vấn đề:** gộp ViewModel và giao diện vào một hàm thì:
+  - không `@Preview` được, vì không có `LocalAppContainer` nên crash
+  - muốn xem trạng thái "đầy lỗi" thì phải tự gõ
+  - code giao diện dính chặt vào ViewModel
+- **Giải pháp:**
+  - **Route** là phần stateful, đóng vai "dây điện": lấy ViewModel, đọc hộp, nghe ống, dịch effect.
+  - **Screen** là phần stateless: chỉ là một hàm `state → giao diện`, preview được với bất kỳ `AuthUiState(...)` nào.
+- **Vì sao viết sau ViewModel:** Route dùng `AuthViewModel`. Với Screen, Route chỉ cần biết **chữ ký**, nên có thể viết Route trước rồi viết thân Screen sau.
+- **Từng khối:**
+  - ① **Tham số:** 2 lambda điều hướng do NavHost truyền vào (`VisionFitNavHost.kt:43-48`), và `viewModel` có giá trị mặc định `containerViewModel { ... }` để test truyền ViewModel khác.
+  - ② **Đọc hộp:** `collectAsStateWithLifecycle().value` (dòng 92).
+  - ③ **Bắt sóng** `LocalAppMessenger` và `LocalUriHandler` (dòng 93-94). Hai dòng này nằm **bên ngoài** `CollectEffects`. Lý do là bài tập 1 bên dưới: lambda `onEffect` không phải `@Composable`.
+  - ④ **`CollectEffects`** (dòng 95-104) dịch effect thành hành động:
+    - `Navigate*` gọi lambda tương ứng
+    - `OpenUrl` bọc trong `runCatching`, vì không có trình duyệt thì `openUri` ném exception
+    - các effect còn lại gọi `messenger.show(...)`
+    - **Câu chữ tiếng Việt nằm ở Route**, không nằm ở ViewModel.
+  - ⑤ **`AuthScreen(state, viewModel::onEvent)`** (dòng 105): method reference, tương đương `{ e -> viewModel.onEvent(e) }`.
+- **Chuỗi 4 trạm với số dòng thật:**
+  - ① Screen gọi `onEvent(Submit)`
+  - ② `AuthViewModel.kt:67` gửi `sendEffect(NavigateToDashboard)`
+  - ③ `AuthScreen.kt:97` gọi `onNavigateToDashboard()`
+  - ④ `VisionFitNavHost.kt:45` gọi `navigateToDashboard()`
+
+  `ResetLinkSent` kết thúc luôn ở trạm ③.
+
+**Bài tập đã giao:**
+1. Chuyển `LocalUriHandler.current` vào bên trong nhánh `OpenUrl`, build xem lỗi gì và vì sao (xem `CollectEffects.kt:19`).
+2. Truy vết nút "Quên mật khẩu?" từ lúc bấm tới khi snackbar hiện, ghi `file:dòng` cho mỗi trạm.
+3. Tạo `practice/MyAuthScreen.kt` (thân hàm để trống) và đổi dòng 105 của `AuthRoute` sang gọi nó.
 
 ---
 
@@ -473,7 +628,14 @@ Test tạo trực tiếp các mảnh, không cần giao diện: `AuthViewModel(a
 1. Theme: dùng token trong `myBlankScreen`, bọc preview, thử đổi `primary`.
 2. MVI: bộ đếm có nút −, Reset, effect `ShowMessage`.
 3. Navigation: NavHost mini Home/Detail, sau đó thêm `HomeViewModel` để đi đủ 4 trạm.
-4. Domain/Data/DI: câu hỏi về tài khoản bị khóa + `FakeAuthRepository`.
+4. Domain/Data/DI: câu hỏi về tài khoản bị khóa + `FakeAuthRepository` + mã HTTP của `identity-service`.
+5. Contract (6.1): "Ghi nhớ đăng nhập" thuộc State/Event/Effect; bug nếu `isRegister` là field lưu riêng.
+6. ViewModel (6.2): `emailError` khi `ModeSelected`; bấm "Quên mật khẩu?" lúc đang submit; nhánh `when` cho "Ghi nhớ đăng nhập".
+7. Route (6.3): lỗi compile khi đọc `LocalUriHandler` trong lambda effect; truy vết "Quên mật khẩu?"; **tạo `MyAuthScreen` và đổi dòng 105** (cần làm trước 6.4).
+
+Các checkpoint chưa được trả lời:
+- "Screen stateless giúp được điều gì?" (6.3)
+- 2 câu tóm tắt "CompositionLocal làm gì / constructor làm gì trong DI" (5b)
 
 Khi user nộp bài, hãy review nghiêm: đúng pattern chưa (Screen không biết NavController, State là object bất biến, Effect đi qua Channel…), clean code, edge case.
 
@@ -481,50 +643,14 @@ Khi user nộp bài, hãy review nghiêm: đúng pattern chưa (Screen không bi
 
 ## 5. Kế hoạch các bước tiếp theo (đủ để dạy tiếp)
 
-### Bước 6 (TIẾP THEO): Feature Auth trọn vẹn
+### Bước 6.4 (TIẾP THEO): User tự viết `MyAuthScreen`
 
-Mở đầu bằng câu hỏi: "Bước 5 đã rõ chưa?". Sau đó đi theo thứ tự `AuthContract` → `AuthViewModel` → `AuthRoute` → user tự viết `AuthScreen`.
+Mở đầu buổi:
+1. Hỏi lại các checkpoint còn treo (mục 4).
+2. Kiểm tra user đã tạo `practice/MyAuthScreen.kt` và đổi dòng 105 của `AuthRoute` chưa.
+3. Dạy theo đúng phong cách: mỗi lượt chỉ một phần nhỏ. Trước khi user dùng khái niệm Compose nào mới (`TextField`/`BasicTextField`, `Column`, `Arrangement`, `KeyboardOptions`…), phải giới thiệu khái niệm đó trước. Đưa snippet nhỏ, user tự gõ, Claude review nghiêm.
 
-**`presentation/auth/AuthContract.kt`**
-- `enum AuthMode { LOGIN, REGISTER }`: một màn hình, hai chế độ.
-- `enum LegalDocument(url)`: link Điều khoản và Chính sách quyền riêng tư.
-- `data class AuthUiState(...)`:
-  - `mode`, `email`, `password`, `confirmPassword`, `isPasswordVisible`
-  - `emailError`, `passwordError`, `confirmPasswordError` (kiểu `CredentialError?`, lỗi nhập liệu hiện dưới từng ô)
-  - `submitError: AuthError?` (lỗi server, hiện thành banner)
-  - `isSubmitting` (nút đang loading), `isSendingReset` (nút "Quên mật khẩu?" hiện "Đang gửi…")
-  - thuộc tính suy ra `isRegister`
-  - giá trị mặc định chính là màn hình lúc mới mở
-- `sealed interface AuthEvent`: `ModeSelected(mode)`, `EmailChanged`, `PasswordChanged`, `ConfirmPasswordChanged`, `TogglePasswordVisibility`, `Submit`, `ForgotPassword`, `LegalLinkClicked(document)`. Dùng `data class` khi event mang dữ liệu, `data object` khi không.
-- `sealed interface AuthEffect`: `NavigateToDashboard`, `NavigateToOnboarding`, `OpenUrl(url)`, `ResetLinkSent(email)`, `ResetLinkFailed`.
-
-**`presentation/auth/AuthViewModel.kt`**
-- Constructor nhận `AuthRepository` và `ValidateCredentialsUseCase`.
-- `onEvent`:
-  - `ModeSelected`: đổi mode, xóa `confirmPassword` và các lỗi, nhưng **giữ email** để người dùng không phải gõ lại.
-  - `XChanged`: cập nhật giá trị, xóa lỗi của ô đó và xóa `submitError` (người dùng bắt đầu sửa thì ẩn lỗi đi).
-  - `Toggle`: lật `isPasswordVisible`.
-  - `Submit` gọi `submit()`, `ForgotPassword` gọi `requestPasswordReset()`.
-  - `LegalLinkClicked` gửi `OpenUrl`. ViewModel không tự mở trình duyệt, đó là việc của UI.
-- `submit()`:
-  - chụp `currentState` một lần
-  - `isSubmitting` đang true thì return (chống bấm 2 lần)
-  - validate, với `confirmation = confirmPassword.takeIf { isRegister }`
-  - không hợp lệ thì gán lỗi rồi return
-  - hợp lệ thì `isSubmitting = true`, `launch` gọi `register` hoặc `login` với email đã trim
-  - `Success` → tắt loading + effect (đăng ký → Onboarding, đăng nhập → Dashboard)
-  - `Failure` → gán `submitError`
-- `requestPasswordReset()`:
-  - chỉ validate email: `validateCredentials(email, "", null).email`
-  - bật `isSendingReset`, gọi repository, rồi gửi effect `ResetLinkSent` hoặc `ResetLinkFailed`
-
-**`AuthRoute`** (đã dạy ở bước 4 và 5)
-- `collectAsStateWithLifecycle()`
-- `LocalAppMessenger` (thông báo), `LocalUriHandler` (mở link)
-- `CollectEffects` dịch effect thành hành động: `OpenUrl` bọc trong `runCatching`
-- Gọi `AuthScreen(state, viewModel::onEvent)` (method reference)
-
-**User tự viết `AuthScreen` (stateless), gợi ý chia nhỏ:**
+**Chia nhỏ việc viết Screen (stateless):**
 1. Bản tối giản: ô email, ô mật khẩu, nút Submit, dòng lỗi. Chỉ đọc `state` và gọi `onEvent`.
 2. Thêm nút chuyển Đăng nhập/Đăng ký và ô nhập lại mật khẩu (chỉ hiện khi `isRegister`).
 3. Thêm banner `submitError` và trạng thái loading của nút (`VfPrimaryButton(loading = state.isSubmitting)`).
@@ -533,7 +659,7 @@ Mở đầu bằng câu hỏi: "Bước 5 đã rõ chưa?". Sau đó đi theo th
    - `AuthError.message()`: "Email hoặc mật khẩu chưa đúng…", "Email này đã có tài khoản rồi…", "Tài khoản đang tạm khóa…", "Không kết nối được…"
 5. Thêm `@Preview` bọc bằng `VisionFitPreview`, với state giả (đăng nhập trống, đăng ký đầy lỗi, xoay ngang).
 
-**Tham khảo bản gốc (đang comment):**
+**Tham khảo bản gốc (đã khôi phục đầy đủ, dùng để đối chiếu sau khi user tự viết xong từng phần):**
 - `AuthScreen.kt`:
   - chọn layout theo `LocalWindowLayout`: `AuthTwoPanes` (cửa sổ rộng hoặc xoay ngang), `AuthCentered` (tablet dọc), `AuthStacked` (điện thoại, dùng `Layout` tùy biến để phần hero co lại)
   - các mảnh dùng chung `AuthFields`, `AuthActions` (nút + text điều khoản dùng `buildAnnotatedString` với `withLink`), `SubmitErrorBanner`
@@ -572,11 +698,15 @@ Mở đầu bằng câu hỏi: "Bước 5 đã rõ chưa?". Sau đó đi theo th
 - `jvmTest`: `AppFlowUiTest` (compose ui-test), `ScreenshotSmokeTest`, `ResponsiveScreenshotTest`.
 
 ### Bước 10: Nối backend thật
-- Thêm Ktor client (hiện **chưa có** trong dependencies) và lưu token.
-- Viết `RemoteAuthRepository : AuthRepository` gọi gateway (port 8080) → `identity-service`.
-- Đổi mã lỗi HTTP thành `AuthError`.
-- Đổi đúng 1 dòng trong `AppContainer`.
-- Cách dạy theo mentor mode: brainstorm trước, user tự viết.
+**Code đã có sẵn** (commit `607f553`):
+- Ktor trong `libs.versions.toml` và `composeApp/build.gradle.kts`
+- `data/remote/`: `ApiConfig` (`expect/actual`, port **8081**), `HttpClientFactory`, `TokenStore`, `dto/AuthDtos`
+- `RemoteAuthRepository`: đọc `uid` từ access token, đổi mã HTTP thành `AuthError`
+- `AppContainer` chọn bếp bằng `apiBaseUrl`
+- Test: `RemoteAuthRepositoryTest`
+- Cấu hình cho phép HTTP không mã hóa: Android `network_security_config.xml`, iOS `Info.plist`
+
+Cách dạy: **đọc và review** code có sẵn theo thứ tự phụ thuộc (DTO → client → TokenStore → Repository → AppContainer → test). Với mỗi file, hỏi user "nếu tự viết, bạn sẽ làm khác chỗ nào", và nối với code `identity-service` của user.
 
 ---
 
