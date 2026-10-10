@@ -1,7 +1,7 @@
 # VisionFit KMP: Nhật ký học UI (Clean Architecture + Compose Multiplatform)
 
 > File này ghi lại một chuỗi buổi học giữa user và Claude.
-> Buổi 1: bước 1 → 5. Buổi 2 (2026-10-10): dạy lại bước 5, làm rõ DI, bước 6.1 → 6.3.
+> Buổi 1: bước 1 → 5. Buổi 2 (2026-10-10): dạy lại bước 5, làm rõ DI, bước 6.1 → 6.3, phần 1 của 6.4, rồi dạy sâu `remember`/`mutableStateOf` và vòng MVI (6.4b, 6.4c).
 > Dán file này vào một cuộc chat mới để Claude tiếp tục dạy đúng chỗ đã dừng.
 
 ---
@@ -13,6 +13,7 @@
 **Về user:**
 - Người Việt. **Luôn trả lời bằng tiếng Việt.**
 - Đang tự học. Đã làm Spring Boot backend khá tốt, nhưng mới với Compose, MVI và kiến trúc UI.
+- **Đã nắm UI Compose cơ bản** (widget, layout). Không cần dạy lại widget, chỉ tập trung vào state, `remember`, MVI và kiến trúc. User hiểu nhanh khi có **truy vết theo `file:dòng`** và bảng "cũ → mới".
 - Muốn **tự gõ code**. Claude chỉ đưa snippet minh họa nhỏ, giao bài tập, rồi review nghiêm khắc. Không viết hộ cả màn hình.
 
 **Phong cách dạy bắt buộc** (rút ra từ chính buổi học này):
@@ -93,7 +94,10 @@
 | 6.1 | `AuthContract` | ✅ Đã dạy |
 | 6.2 | `AuthViewModel` | ✅ Đã dạy. User nói "hiểu rồi" |
 | 6.3 | `AuthRoute` (tách Route và Screen) | ✅ Đã dạy. **Chưa xác nhận** checkpoint |
-| 6.4 | **User tự viết `MyAuthScreen`** | ⏭ **TIẾP THEO** |
+| 6.4 | User tự viết `MyAuthScreen`: phần 1 (controlled input, bản tối giản) | ✅ Đã dạy và giao bài. **User chưa gõ, thư mục `practice/` chưa có** |
+| 6.4b | `remember` / `mutableStateOf` / cây cầu `collectAsStateWithLifecycle` / vòng MVI | ✅ Đã dạy (user hỏi) |
+| 6.4c | Truy vết `onEvent` → `copy`; user tự tóm tắt MVI, Claude chỉnh 4 chỗ | ✅ Đã dạy. User nói "hiểu" |
+| 6.4 tiếp | **User nộp `MyAuthScreen` phần 1 → review → phần 2** | ⏭ **TIẾP THEO** |
 | 7 | Design system components (BrutalSurface, VfPrimaryButton, icon, thứ tự Modifier) | Chưa |
 | 8 | Hoàn thiện App shell (AppMessenger/Snackbar, WindowLayout responsive, insets, VisionFitPreview) | Chưa |
 | 9 | Test (FlowTests cho ViewModel, UI test, screenshot test) | Chưa |
@@ -623,6 +627,118 @@ Nguyên tắc rút ra: **class nhận phụ thuộc từ bên ngoài, không t�
 
 ---
 
+### Bước 6.4 (phần 1): Controlled input và `MyAuthScreen` bản tối giản
+
+User nói đã nắm UI cơ bản (widget, layout), nên **không cần dạy lại widget**. Chỉ tập trung vào state và MVI.
+
+- **Vấn đề:** dùng `var email by remember { mutableStateOf("") }` trong Screen thì ô nhập vẫn hiện đúng chữ, nhưng ViewModel thấy `state.email == ""`. Lý do là có **2 nơi cùng giữ email** và chúng không biết nhau.
+- **Giải pháp, controlled input / state hoisting:**
+  - `value = state.email`
+  - `onValueChange = { onEvent(EmailChanged(it)) }`
+  - Ô nhập không tự đổi chữ, chỉ báo cáo. ViewModel cập nhật hộp, rồi ô được vẽ lại với chữ mới.
+- `OutlinedTextField`:
+  - `label` và `supportingText` nhận **lambda `@Composable`**, không nhận String
+  - `state.emailError?.let { { Text(it.name) } }`: tạm hiện tên enum, phần 4 sẽ dịch sang tiếng Việt
+- **Quy ước `modifier`:** tham số `modifier` chỉ gắn vào phần tử ngoài cùng, gắn một lần, viết `modifier.fillMaxSize()...` (chữ thường), không viết `Modifier...`.
+
+**Đề bài `MyAuthScreen` (đã giao, chưa nộp):**
+- Các thành phần:
+  - tiêu đề dùng `VisionFitTheme.type.headlineL`
+  - ô email, ô mật khẩu (`PasswordVisualTransformation()`)
+  - dòng lỗi `submitError` dùng màu theme
+  - `Button(enabled = !state.isSubmitting)`, chữ đổi thành "Đang đăng nhập…" khi đang gửi
+- 2 preview: `MyAuthEmptyPreview` và `MyAuthErrorPreview` (lỗi cả 2 ô, có `submitError`, `isSubmitting = true`).
+- Luật review:
+  - không có `remember { mutableStateOf }` chứa dữ liệu form
+  - không có ViewModel hay `navController` trong file
+  - không viết màu hay cỡ chữ thẳng vào code
+  - chỉ đọc `state` và gọi `onEvent`
+- Lưu ý khi chạy: app đang trỏ tới backend thật (port 8081). Service chưa chạy thì hiện `NETWORK`, và đó là kết quả đúng. Muốn dùng tài khoản demo thì tạm sửa `App.kt:66` thành `AppContainer()`.
+
+---
+
+### Bước 6.4b: `remember`, `mutableStateOf` và cách Screen nghe ViewModel (user hỏi vì còn mơ hồ)
+
+- **Recomposition:** hàm `@Composable` bị gọi lại từ đầu mỗi khi dữ liệu nó đọc thay đổi, nên mọi biến cục bộ bị tạo lại.
+- **Thí nghiệm bộ đếm 4 phiên bản:**
+  - V1 `var count = 0`: màn hình không đổi, vì Compose không biết biến đã đổi
+  - V2 `mutableStateOf(0)` không có `remember`: vẽ lại nhưng tạo hộp mới chứa 0
+  - V3 `remember { mutableStateOf(0) }`: chạy đúng, nhưng xoay máy là mất
+  - V4: đưa vào ViewModel
+- **Ẩn dụ:**
+  - `mutableStateOf` = **hộp có chuông** (đổi thì Compose biết để vẽ lại), cùng họ với StateFlow
+  - `remember` = **ngăn kéo** (giữ lại đúng cái hộp cũ qua các lần vẽ)
+  - Hai từ khóa giải quyết **hai vấn đề khác nhau**.
+- **`by`** chỉ là cách viết gọn để bỏ `.value`. Muốn gán lại giá trị thì phải khai báo `var`.
+- **Bảng tuổi thọ:**
+
+  | Cách giữ | Recomposition | Xoay máy | Rời màn hình |
+  |---|---|---|---|
+  | `var` thường | mất | mất | mất |
+  | `remember` | giữ | mất | mất |
+  | `rememberSaveable` | giữ | giữ | mất |
+  | `StateFlow` trong ViewModel | giữ | giữ | mất khi màn bị pop |
+
+- **Quy tắc trong dự án:** hỏi "ViewModel có cần biết dữ liệu này không?"
+  - Có thì đưa vào State.
+  - Không (đồ nghề UI) thì dùng `remember`. Ví dụ thật:
+    - `AuthForm.kt:116` `MutableInteractionSource`
+    - `AuthForm.kt:117` `FocusRequester`
+    - `AuthScreen.kt:157` `rememberScrollState()`
+    - `AuthHero.kt:212` `remember(text, style) {}`: dùng như cache, key đổi thì tính lại
+- **Cây cầu:**
+  - ViewModel dùng `StateFlow` vì đó là Kotlin thuần, test được mà không cần Compose.
+  - `collectAsStateWithLifecycle()` (`AuthScreen.kt:92`) đổi `StateFlow` thành `State` của Compose, nhờ vậy Route được vẽ lại khi hộp đổi.
+- **Vòng MVI có 3 đường:**
+  - ① Event đi lên qua `onEvent`
+  - ② State đi xuống qua hộp, rồi qua cây cầu tới Screen
+  - ③ Effect đi xuống qua ống, rồi qua `CollectEffects` tới Route
+- **Truy vết gõ chữ "a":** `AuthScreen.kt:286` → `AuthViewModel.kt:26` → `MviViewModel.kt:36` → `AuthScreen.kt:92` → Screen vẽ lại.
+- **Truy vết Submit thành công:**
+  - `isSubmitting = true` (VM:56), nút quay
+  - chờ `login`
+  - `isSubmitting = false` (VM:66) cùng với effect `NavigateToDashboard` (VM:67)
+  - Route dòng 97 điều hướng
+  - Trạng thái kéo dài đi qua hộp, việc xảy ra một lần đi qua ống.
+- **Vì sao State bất biến và luôn dùng `copy`:** `StateFlow` chỉ báo tin khi nhận object khác. Sửa trực tiếp field của object cũ thì không có tin báo, màn hình đứng yên (giống V1).
+- **5 luật MVI của dự án:**
+  1. một Screen, một State
+  2. một cửa vào `onEvent`
+  3. State là `data class` bất biến, chỉ đổi bằng `copy`
+  4. việc xảy ra một lần đi qua Effect
+  5. Screen là hàm thuần; `remember` chỉ dùng cho đồ nghề UI
+
+---
+
+### Bước 6.4c: `onEvent` chỉ truyền event, vậy `copy` nằm ở đâu? (user hỏi)
+
+- Trong Screen, `onEvent: (AuthEvent) -> Unit` chỉ là **tham số kiểu hàm, không có thân** (`AuthScreen.kt:109`).
+  - Ẩn dụ: **điều khiển TV**, bấm nút chỉ phát tín hiệu.
+  - So với Spring: giống gọi method qua interface, logic nằm ở class Impl.
+- Route cắm dây: `onEvent = viewModel::onEvent` (`AuthScreen.kt:105`).
+- Thân thật của hàm nằm ở `AuthViewModel.kt:15`: `when` chọn nhánh, rồi `updateState { copy(...) }`.
+- **Mổ xẻ `updateState { copy(...) }`:**
+  1. `updateState(reducer)` chạy `_state.update(reducer)`, tức là "đưa State cũ, nhận State mới"
+  2. `State.() -> State` nên bên trong lambda, `this` là State cũ
+  3. `copy` do Kotlin tự sinh cho mọi `data class`: tạo object mới, field không nêu tên thì giữ nguyên
+- Hệ quả: preview truyền `onEvent = {}` thì Screen vẫn vẽ bình thường, chỉ là bấm vào không có gì xảy ra.
+
+**User tự tóm tắt MVI.** User hiểu đúng khoảng 85%. Claude đã chỉnh 4 chỗ:
+1. Lớp cha **không lưu Event**. Event chỉ là kiểu dữ liệu và là tham số của `onEvent`. Chỉ State (hộp) và Effect (ống) có chỗ lưu.
+2. Chỉ override **đúng `onEvent`** (abstract). `updateState` và `sendEffect` là công cụ `protected`, lớp con chỉ gọi.
+3. **Screen không cầm Effect.** Route đọc hộp, nghe ống và cắm dây. Screen chỉ nhận `state` và gọi `onEvent`.
+4. "Tự động cập nhật" là nhờ `collectAsStateWithLifecycle` ở Route, không phải phép màu.
+
+Bản tóm tắt chuẩn đã đưa cho user:
+```
+MviViewModel<State, Event, Effect>: hộp _state, ống _effects, abstract onEvent, updateState{}/sendEffect()
+AuthViewModel: onEvent → when(event) → updateState{copy} / sendEffect
+AuthRoute: đọc hộp → AuthScreen(state, onEvent = viewModel::onEvent); nghe ống → navigate/snackbar
+Vòng: Screen onEvent → VM → hộp đổi → Route vẽ lại → Screen nhận state mới
+```
+
+---
+
 ## 4. Bài tập chưa nộp hoặc chưa review
 
 1. Theme: dùng token trong `myBlankScreen`, bọc preview, thử đổi `primary`.
@@ -633,9 +749,15 @@ Nguyên tắc rút ra: **class nhận phụ thuộc từ bên ngoài, không t�
 6. ViewModel (6.2): `emailError` khi `ModeSelected`; bấm "Quên mật khẩu?" lúc đang submit; nhánh `when` cho "Ghi nhớ đăng nhập".
 7. Route (6.3): lỗi compile khi đọc `LocalUriHandler` trong lambda effect; truy vết "Quên mật khẩu?"; **tạo `MyAuthScreen` và đổi dòng 105** (cần làm trước 6.4).
 
+8. **`MyAuthScreen` phần 1** (6.4): đề bài ở mục 3, bước 6.4. **Ưu tiên số 1 cho buổi sau.**
+9. Bộ đếm V1/V2/V3 (6.4b): gõ thử để tự quan sát, đọc cảnh báo của IDE ở V2.
+
 Các checkpoint chưa được trả lời:
 - "Screen stateless giúp được điều gì?" (6.3)
 - 2 câu tóm tắt "CompositionLocal làm gì / constructor làm gì trong DI" (5b)
+- Vì sao ô nhập ở ví dụ ngây thơ hiện đúng chữ mà ViewModel lại thấy email trống? (6.4)
+- Phân loại State / `remember` / Effect cho 6 thứ: chữ trong ô mật khẩu, ô đang focus, nút loading, snackbar "Đã gửi link", vị trí cuộn, `isPasswordVisible`. Câu cuối có bẫy, cần bàn chuyện xoay máy và test. (6.4b)
+- **Từ State `AuthUiState(mode=REGISTER, email="an@x.vn", password="123", confirmPassword="12", passwordError=PASSWORD_TOO_SHORT)` mà gọi `ModeSelected(LOGIN)`**, ghi ra State mới theo dạng bảng "cũ → mới". (6.4c) Đáp án: `mode=LOGIN`, `confirmPassword=""`, `passwordError=null`, `confirmPasswordError=null`, `submitError=null`; **giữ** `email` và `password="123"`.
 
 Khi user nộp bài, hãy review nghiêm: đúng pattern chưa (Screen không biết NavController, State là object bất biến, Effect đi qua Channel…), clean code, edge case.
 
@@ -646,8 +768,8 @@ Khi user nộp bài, hãy review nghiêm: đúng pattern chưa (Screen không bi
 ### Bước 6.4 (TIẾP THEO): User tự viết `MyAuthScreen`
 
 Mở đầu buổi:
-1. Hỏi lại các checkpoint còn treo (mục 4).
-2. Kiểm tra user đã tạo `practice/MyAuthScreen.kt` và đổi dòng 105 của `AuthRoute` chưa.
+1. Hỏi lại các checkpoint còn treo (mục 4). Ưu tiên câu `ModeSelected(LOGIN)`.
+2. Kiểm tra user đã tạo `practice/MyAuthScreen.kt`, đổi dòng 105 của `AuthRoute`, và gõ xong phần 1 chưa. Nếu đã gõ, review theo các luật ở mục 3, bước 6.4, rồi sang phần 2.
 3. Dạy theo đúng phong cách: mỗi lượt chỉ một phần nhỏ. Trước khi user dùng khái niệm Compose nào mới (`TextField`/`BasicTextField`, `Column`, `Arrangement`, `KeyboardOptions`…), phải giới thiệu khái niệm đó trước. Đưa snippet nhỏ, user tự gõ, Claude review nghiêm.
 
 **Chia nhỏ việc viết Screen (stateless):**
