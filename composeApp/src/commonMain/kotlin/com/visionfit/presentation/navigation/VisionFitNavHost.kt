@@ -25,6 +25,8 @@ import com.visionfit.presentation.review.ReviewRoute
  * App flow:
  * Auth → (register) Onboarding → Goal → Dashboard; (login) Dashboard.
  * Dashboard ↔ History via the bottom bar; Camera → Analysis → Review → Dashboard.
+ * Profile tab: Goal (step 2) when a profile is saved, the Onboarding editor otherwise. From Goal,
+ * "Chỉnh lại thông tin" opens the editor on top; saving or Back returns to that same Goal.
  */
 @Composable
 fun VisionFitNavHost(
@@ -50,7 +52,7 @@ fun VisionFitNavHost(
             val route = entry.toRoute<OnboardingDestination>()
             OnboardingRoute(
                 isEditing = route.isEditing,
-                onNavigateToGoal = { navController.navigate(GoalDestination) { launchSingleTop = true } },
+                onNavigateToGoal = { navController.navigateToGoal() },
                 onNavigateBack = { navController.popBackStack() },
                 // Signed out: nothing behind the sign-in screen, so Back cannot reopen the old session.
                 onNavigateToAuth = {
@@ -129,6 +131,16 @@ private fun NavController.navigateToDashboard() {
             popUpTo(graph.id) { inclusive = true }
             launchSingleTop = true
         }
+    }
+}
+
+/**
+ * After the profile form is saved: back to the Goal screen the editor was opened from, or
+ * forward to it at the end of onboarding. Never stacks a second Goal on top of the first.
+ */
+private fun NavController.navigateToGoal() {
+    if (!popBackStack<GoalDestination>(inclusive = false)) {
+        navigate(GoalDestination) { launchSingleTop = true }
     }
 }
 

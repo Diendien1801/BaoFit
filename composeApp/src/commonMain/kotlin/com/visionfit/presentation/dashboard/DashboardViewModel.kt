@@ -72,7 +72,15 @@ class DashboardViewModel(
                 MainTab.TODAY -> Unit
                 MainTab.HISTORY -> sendEffect(DashboardEffect.NavigateToHistory)
                 MainTab.GOAL -> sendEffect(DashboardEffect.NavigateToGoal)
-                MainTab.PROFILE -> sendEffect(DashboardEffect.NavigateToProfile)
+                // A saved profile opens on its result (step 2); editing is one tap away there.
+                // Without one (never created, still loading, failed) the editor handles those states.
+                MainTab.PROFILE -> sendEffect(
+                    if (profileRepository.status.value == ProfileStatus.READY) {
+                        DashboardEffect.NavigateToGoal
+                    } else {
+                        DashboardEffect.NavigateToProfile
+                    },
+                )
             }
             DashboardEvent.RetryProfileClicked -> viewModelScope.launch { profileRepository.refresh() }
         }

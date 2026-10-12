@@ -5,6 +5,7 @@ import com.visionfit.core.mvi.MviViewModel
 import com.visionfit.core.time.TimeProvider
 import com.visionfit.domain.model.PendingMeal
 import com.visionfit.domain.model.PendingStatus
+import com.visionfit.domain.model.ProfileStatus
 import com.visionfit.domain.repository.MealRepository
 import com.visionfit.domain.repository.NetworkMonitor
 import com.visionfit.domain.repository.ProfileRepository
@@ -24,7 +25,7 @@ import kotlinx.datetime.minus
 
 class HistoryViewModel(
     mealRepository: MealRepository,
-    profileRepository: ProfileRepository,
+    private val profileRepository: ProfileRepository,
     networkMonitor: NetworkMonitor,
     timeProvider: TimeProvider,
     calculateTarget: CalculateNutritionTargetUseCase,
@@ -80,7 +81,14 @@ class HistoryViewModel(
                 MainTab.TODAY -> sendEffect(HistoryEffect.NavigateToDashboard)
                 MainTab.HISTORY -> select(today)
                 MainTab.GOAL -> sendEffect(HistoryEffect.NavigateToGoal)
-                MainTab.PROFILE -> sendEffect(HistoryEffect.NavigateToProfile)
+                // Same rule as the dashboard: a saved profile opens on its result (step 2).
+                MainTab.PROFILE -> sendEffect(
+                    if (profileRepository.status.value == ProfileStatus.READY) {
+                        HistoryEffect.NavigateToGoal
+                    } else {
+                        HistoryEffect.NavigateToProfile
+                    },
+                )
             }
         }
     }

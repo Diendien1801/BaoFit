@@ -23,7 +23,8 @@ import kotlin.test.assertTrue
 
 /**
  * End-to-end through the real navigation graph, ViewModels and mock repositories:
- * sign in → open the dinner being analyzed → wait for the AI → review → save → back on the dashboard.
+ * sign in → open the dinner being analyzed → wait for the AI → review → save → back on the dashboard,
+ * and the profile tab → step 2 → edit → save → back.
  */
 @OptIn(ExperimentalTestApi::class)
 class AppFlowUiTest {
@@ -64,6 +65,42 @@ class AppFlowUiTest {
         waitForText("4 bữa đã lưu")
     }
 
+    @Test
+    fun profileTabOpensTheSavedTargetAndEditingComesBackToIt() = runComposeUiTest {
+        mainClock.autoAdvance = false
+        setContent { VisionFitApp(AppContainer(FixedTimeProvider(now))) }
+        mainClock.advanceTimeBy(FRAME_MILLIS)
+        val fields = onAllNodes(hasSetTextAction())
+        fields[0].performTextInput(InMemoryVisionFitStore.DEMO_EMAIL)
+        fields[1].performTextInput(InMemoryVisionFitStore.DEMO_PASSWORD)
+        onAllNodesWithText("Đăng nhập").onLast().performClick()
+        waitForText("Chào buổi tối, An!")
+
+        // The demo account has a saved profile: the tab opens step 2, not the form.
+        onAllNodesWithText("Hồ sơ").onFirst().performClick()
+        waitForText("Tèn tén!")
+        assertGone("Cập nhật chỉ số")
+
+        // "Chỉnh lại thông tin" opens the form on top; saving returns to that same step 2.
+        onAllNodesWithText("Chỉnh lại thông tin").onFirst().performClick()
+        waitForText("Cập nhật chỉ số của bạn nhé!")
+        assertGone("Tèn tén!")
+        onAllNodesWithText("Tính mục tiêu của tôi").onFirst().performClick()
+        waitForText("Tèn tén!")
+        assertGone("Cập nhật chỉ số")
+
+        // One Back reaches the dashboard: no second step 2 and no form were left behind.
+        onAllNodes(hasContentDescription("Quay lại")).onFirst().performClick()
+        waitForText("Chào buổi tối, An!")
+        assertGone("Tèn tén!")
+    }
+
+    /** Lets screen transitions finish, then checks [text] is no longer on screen. */
+    private fun ComposeUiTest.assertGone(text: String) {
+        mainClock.advanceTimeBy(TRANSITION_MILLIS)
+        assertTrue(onAllNodes(hasText(text, substring = true)).fetchSemanticsNodes().isEmpty(), "'$text' is still shown")
+    }
+
     private fun ComposeUiTest.waitForText(text: String, timeoutMillis: Long = 5_000) {
         waitUntil(conditionDescription = "text '$text' is shown", timeoutMillis = timeoutMillis) {
             mainClock.advanceTimeBy(FRAME_MILLIS)
@@ -73,5 +110,6 @@ class AppFlowUiTest {
 
     private companion object {
         const val FRAME_MILLIS = 100L
+        const val TRANSITION_MILLIS = 600L
     }
 }
