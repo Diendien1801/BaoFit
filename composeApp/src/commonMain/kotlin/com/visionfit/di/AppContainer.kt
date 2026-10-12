@@ -1,6 +1,7 @@
 package com.visionfit.di
 
 import androidx.compose.runtime.staticCompositionLocalOf
+import com.visionfit.core.log.AppLog
 import com.visionfit.core.time.SystemTimeProvider
 import com.visionfit.core.time.TimeProvider
 import com.visionfit.data.mock.InMemoryVisionFitStore
@@ -42,6 +43,14 @@ class AppContainer(
     api: ApiUrls? = null,
 ) {
     private val store = InMemoryVisionFitStore(timeProvider)
+
+    init {
+        if (api == null) {
+            AppLog.d("Api", "Using in-memory mocks for auth and profile")
+        } else {
+            AppLog.d("Api", "identity-service: ${api.identity} | profile-service: ${api.profile}")
+        }
+    }
 
     /** Shared: auth fills it on sign-in, every other remote repository sends its access token. */
     private val tokenStore = TokenStore()

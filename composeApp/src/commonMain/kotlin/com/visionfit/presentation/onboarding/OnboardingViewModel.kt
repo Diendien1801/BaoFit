@@ -2,6 +2,7 @@ package com.visionfit.presentation.onboarding
 
 import androidx.lifecycle.viewModelScope
 import com.visionfit.core.mvi.MviViewModel
+import com.visionfit.core.log.AppLog
 import com.visionfit.domain.model.BodyProfile
 import com.visionfit.domain.model.ProfileStatus
 import com.visionfit.domain.repository.AuthRepository
@@ -80,6 +81,7 @@ class OnboardingViewModel(
         updateState { copy(isSaving = true) }
         viewModelScope.launch {
             val saved = profileRepository.saveProfile(currentState.profile)
+            if (!saved) AppLog.w("OnboardingViewModel", "Saving the profile failed (details in the [Profile] lines above)")
             updateState { copy(isSaving = false) }
             sendEffect(if (saved) OnboardingEffect.NavigateToGoal else OnboardingEffect.SaveFailed)
         }

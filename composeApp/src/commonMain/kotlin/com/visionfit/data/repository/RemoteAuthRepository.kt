@@ -1,5 +1,6 @@
 package com.visionfit.data.repository
 
+import com.visionfit.core.log.AppLog
 import com.visionfit.data.remote.AuthTokens
 import com.visionfit.data.remote.TokenStore
 import com.visionfit.data.remote.dto.AuthResponse
@@ -13,9 +14,12 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
+import io.ktor.client.statement.request
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
+import io.ktor.http.isSuccess
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -56,20 +60,27 @@ internal class RemoteAuthRepository(
         if (refreshToken == null) return
         // Best effort: the user is signed out on this device even if the server cannot revoke the token.
         try {
-            client.post("api/v1/auth/logout") {
+            val response = client.post(LOGOUT_PATH) {
                 contentType(ContentType.Application.Json)
                 setBody(RefreshTokenRequest(refreshToken))
             }
+            AppLog.d(LOG_AREA, "POST ${response.request.url} -> ${response.status}")
         } catch (e: CancellationException) {
             throw e
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            AppLog.w(LOG_AREA, "POST $LOGOUT_PATH failed (signed out on this device anyway): $e", e)
         }
     }
 
     private suspend fun authenticate(path: String, email: String, password: String): AuthResult = try {
+        AppLog.d(LOG_AREA, "POST $path (email=${email.trim()})")
         val response = client.post(path) {
             contentType(ContentType.Application.Json)
             setBody(CredentialsRequest(email.trim(), password))
+        }
+        AppLog.d(LOG_AREA, "POST ${response.request.url} -> ${response.status}")
+        if (!response.status.isSuccess()) {
+            AppLog.w(LOG_AREA, "POST $path error body: ${response.bodyAsText().take(MAX_LOGGED_BODY)}")
         }
         when (response.status) {
             HttpStatusCode.OK, HttpStatusCode.Created -> signIn(response.body())
@@ -82,13 +93,18 @@ internal class RemoteAuthRepository(
         }
     } catch (e: CancellationException) {
         throw e
-    } catch (_: Exception) {
+    } catch (e: Exception) {
         // No connection, timeout, or a body that does not match AuthResponse.
+        AppLog.e(LOG_AREA, "POST $path failed: $e", e)
         AuthResult.Failure(AuthError.NETWORK)
     }
 
     private fun signIn(response: AuthResponse): AuthResult {
-        val userId = userIdFrom(response.accessToken) ?: return AuthResult.Failure(AuthError.NETWORK)
+        val userId = userIdFrom(response.accessToken) ?: run {
+            AppLog.e(LOG_AREA, "Access token has no `uid` claim, cannot sign in")
+            return AuthResult.Failure(AuthError.NETWORK)
+        }
+        AppLog.d(LOG_AREA, "Signed in as ${response.email} (uid=$userId)")
         tokenStore.save(AuthTokens(response.accessToken, response.refreshToken))
         val session = UserSession(userId, response.email, displayNameFromEmail(response.email))
         _session.value = session
@@ -103,5 +119,13 @@ internal class RemoteAuthRepository(
         val payload = accessToken.split('.').getOrNull(1) ?: return null
         val json = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT_OPTIONAL).decode(payload).decodeToString()
         return Json.parseToJsonElement(json).jsonObject["uid"]?.jsonPrimitive?.contentOrNull
+    }
+
+    private companion object {
+        const val LOGOUT_PATH = "api/v1/auth/logout"
+        const val LOG_AREA = "Auth"
+
+        /** Error bodies are short JSON; this only guards against an HTML error page. */
+        const val MAX_LOGGED_BODY = 500
     }
 }

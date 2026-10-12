@@ -2,6 +2,7 @@ package com.visionfit.presentation.auth
 
 import androidx.lifecycle.viewModelScope
 import com.visionfit.core.mvi.MviViewModel
+import com.visionfit.core.log.AppLog
 import com.visionfit.domain.model.AuthResult
 import com.visionfit.domain.model.ProfileStatus
 import com.visionfit.domain.repository.AuthRepository
@@ -60,6 +61,7 @@ class AuthViewModel(
         updateState { copy(isSubmitting = true, submitError = null) }
         viewModelScope.launch {
             val email = state.email.trim()
+            AppLog.d("AuthViewModel", "Submit ${state.mode} (email=$email)")
             val result = if (state.isRegister) {
                 authRepository.register(email, state.password)
             } else {
@@ -68,10 +70,14 @@ class AuthViewModel(
             when (result) {
                 is AuthResult.Success -> {
                     val next = if (state.isRegister) AuthEffect.NavigateToOnboarding else destinationAfterLogin()
+                    AppLog.d("AuthViewModel", "${state.mode} succeeded, next: $next")
                     updateState { copy(isSubmitting = false) }
                     sendEffect(next)
                 }
-                is AuthResult.Failure -> updateState { copy(isSubmitting = false, submitError = result.error) }
+                is AuthResult.Failure -> {
+                    AppLog.w("AuthViewModel", "${state.mode} failed: ${result.error} (details in the [Auth] lines above)")
+                    updateState { copy(isSubmitting = false, submitError = result.error) }
+                }
             }
         }
     }

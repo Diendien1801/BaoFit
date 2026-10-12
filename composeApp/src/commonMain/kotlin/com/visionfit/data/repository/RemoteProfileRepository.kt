@@ -1,5 +1,6 @@
 package com.visionfit.data.repository
 
+import com.visionfit.core.log.AppLog
 import com.visionfit.data.remote.TokenStore
 import com.visionfit.data.remote.dto.ProfileDto
 import com.visionfit.data.remote.dto.toDomain
@@ -14,6 +15,8 @@ import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.get
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
+import io.ktor.client.statement.request
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
@@ -56,16 +59,26 @@ internal class RemoteProfileRepository(
     }
 
     override suspend fun saveProfile(profile: BodyProfile): Boolean {
-        val token = tokenStore.current()?.accessToken ?: return false
+        val token = tokenStore.current()?.accessToken ?: run {
+            AppLog.w(LOG_AREA, "PUT $PATH skipped: no access token (not signed in)")
+            return false
+        }
         val saved = try {
-            client.put(PATH) {
+            AppLog.d(LOG_AREA, "PUT $PATH")
+            val response = client.put(PATH) {
                 bearerAuth(token)
                 contentType(ContentType.Application.Json)
                 setBody(profile.toDto())
-            }.status == HttpStatusCode.OK
+            }
+            AppLog.d(LOG_AREA, "PUT ${response.request.url} -> ${response.status}")
+            if (response.status != HttpStatusCode.OK) {
+                AppLog.w(LOG_AREA, "PUT $PATH error body: ${response.bodyAsText().take(MAX_LOGGED_BODY)}")
+            }
+            response.status == HttpStatusCode.OK
         } catch (e: CancellationException) {
             throw e
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            AppLog.e(LOG_AREA, "PUT $PATH failed: $e", e)
             false
         }
         if (saved) {
@@ -85,24 +98,34 @@ internal class RemoteProfileRepository(
         val token = tokenStore.current()?.accessToken
         _status.value = try {
             if (token == null) error("signed in without an access token")
+            AppLog.d(LOG_AREA, "GET $PATH")
             val response = client.get(PATH) { bearerAuth(token) }
+            AppLog.d(LOG_AREA, "GET ${response.request.url} -> ${response.status}")
             when (response.status) {
                 HttpStatusCode.OK -> {
                     _profile.value = response.body<ProfileDto>().toDomain()
                     ProfileStatus.READY
                 }
                 HttpStatusCode.NotFound -> ProfileStatus.MISSING
-                else -> ProfileStatus.FAILED
+                else -> {
+                    AppLog.w(LOG_AREA, "GET $PATH error body: ${response.bodyAsText().take(MAX_LOGGED_BODY)}")
+                    ProfileStatus.FAILED
+                }
             }
         } catch (e: CancellationException) {
             throw e
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             // Offline, or a body the app cannot read.
+            AppLog.e(LOG_AREA, "GET $PATH failed: $e", e)
             ProfileStatus.FAILED
         }
     }
 
     private companion object {
         const val PATH = "api/v1/profile/me"
+        const val LOG_AREA = "Profile"
+
+        /** Error bodies are short JSON; this only guards against an HTML error page. */
+        const val MAX_LOGGED_BODY = 500
     }
 }
