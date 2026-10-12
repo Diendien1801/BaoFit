@@ -165,7 +165,7 @@ class FlowTests {
     @Test
     fun authValidatesAndSignsIn() = runTest(dispatcher) {
         val app = app()
-        val auth = AuthViewModel(app.authRepository, app.validateCredentials)
+        val auth = AuthViewModel(app.authRepository, app.profileRepository, app.validateCredentials)
         val effects = collect(auth.effects)
 
         auth.onEvent(AuthEvent.EmailChanged("an@visionfit"))

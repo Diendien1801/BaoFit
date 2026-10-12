@@ -52,6 +52,10 @@ fun VisionFitNavHost(
                 isEditing = route.isEditing,
                 onNavigateToGoal = { navController.navigate(GoalDestination) { launchSingleTop = true } },
                 onNavigateBack = { navController.popBackStack() },
+                // Signed out: nothing behind the sign-in screen, so Back cannot reopen the old session.
+                onNavigateToAuth = {
+                    navController.navigate(AuthDestination) { popUpTo(navController.graph.id) { inclusive = true } }
+                },
             )
         }
         composable<GoalDestination> {

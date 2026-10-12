@@ -4,6 +4,7 @@ import com.visionfit.domain.model.ActivityLevel
 import com.visionfit.domain.model.BodyProfile
 import com.visionfit.domain.model.FitnessGoal
 import com.visionfit.domain.model.NutritionTarget
+import com.visionfit.domain.model.ProfileStatus
 import com.visionfit.domain.model.Sex
 
 enum class BodyMetric { AGE, HEIGHT, WEIGHT }
@@ -15,7 +16,14 @@ data class OnboardingUiState(
     /** Opened from the "Hồ sơ" tab rather than right after sign-up. */
     val isEditing: Boolean = false,
     val isSaving: Boolean = false,
+    /**
+     * Editing only: the form waits for the saved profile, so the user never edits (and saves over
+     * their real profile) the defaults shown while it downloads or after the download failed.
+     */
+    val loadStatus: ProfileStatus = ProfileStatus.READY,
 ) {
+    val isFormVisible: Boolean get() = loadStatus == ProfileStatus.READY || loadStatus == ProfileStatus.MISSING
+
     fun canDecrease(metric: BodyMetric): Boolean = value(metric) > range(metric).first
     fun canIncrease(metric: BodyMetric): Boolean = value(metric) < range(metric).last
 
@@ -41,9 +49,13 @@ sealed interface OnboardingEvent {
     data class GoalSelected(val goal: FitnessGoal) : OnboardingEvent
     data object Submit : OnboardingEvent
     data object Back : OnboardingEvent
+    data object RetryLoadClicked : OnboardingEvent
+    data object LogoutClicked : OnboardingEvent
 }
 
 sealed interface OnboardingEffect {
     data object NavigateToGoal : OnboardingEffect
     data object NavigateBack : OnboardingEffect
+    data object SaveFailed : OnboardingEffect
+    data object NavigateToAuth : OnboardingEffect
 }

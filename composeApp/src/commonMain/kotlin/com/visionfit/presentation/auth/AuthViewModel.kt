@@ -3,12 +3,16 @@ package com.visionfit.presentation.auth
 import androidx.lifecycle.viewModelScope
 import com.visionfit.core.mvi.MviViewModel
 import com.visionfit.domain.model.AuthResult
+import com.visionfit.domain.model.ProfileStatus
 import com.visionfit.domain.repository.AuthRepository
+import com.visionfit.domain.repository.ProfileRepository
 import com.visionfit.domain.usecase.ValidateCredentialsUseCase
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class AuthViewModel(
     private val authRepository: AuthRepository,
+    private val profileRepository: ProfileRepository,
     private val validateCredentials: ValidateCredentialsUseCase,
 ) : MviViewModel<AuthUiState, AuthEvent, AuthEffect>(AuthUiState()) {
 
@@ -63,13 +67,25 @@ class AuthViewModel(
             }
             when (result) {
                 is AuthResult.Success -> {
+                    val next = if (state.isRegister) AuthEffect.NavigateToOnboarding else destinationAfterLogin()
                     updateState { copy(isSubmitting = false) }
-                    sendEffect(if (state.isRegister) AuthEffect.NavigateToOnboarding else AuthEffect.NavigateToDashboard)
+                    sendEffect(next)
                 }
                 is AuthResult.Failure -> updateState { copy(isSubmitting = false, submitError = result.error) }
             }
         }
     }
+
+    /**
+     * Waits for the profile (the button keeps spinning meanwhile), so someone who never finished
+     * onboarding goes back to it and the dashboard never flashes default targets.
+     * A failed download still opens the dashboard, which offers a retry.
+     */
+    private suspend fun destinationAfterLogin(): AuthEffect =
+        when (profileRepository.status.first { it != ProfileStatus.LOADING }) {
+            ProfileStatus.MISSING -> AuthEffect.NavigateToOnboarding
+            else -> AuthEffect.NavigateToDashboard
+        }
 
     private fun requestPasswordReset() {
         val state = currentState

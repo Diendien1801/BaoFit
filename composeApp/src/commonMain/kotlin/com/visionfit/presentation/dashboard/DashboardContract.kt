@@ -19,6 +19,8 @@ data class WeekDay(
 
 data class DashboardUiState(
     val isLoading: Boolean = true,
+    /** The profile could not be downloaded, so today's targets would be someone else's. */
+    val isProfileFailed: Boolean = false,
     val userName: String = "",
     val initials: String = "",
     val today: LocalDate? = null,
@@ -40,6 +42,7 @@ sealed interface DashboardEvent {
     data class MealClicked(val meal: MealEntry) : DashboardEvent
     data object CaptureClicked : DashboardEvent
     data class TabSelected(val tab: MainTab) : DashboardEvent
+    data object RetryProfileClicked : DashboardEvent
 }
 
 sealed interface DashboardEffect {

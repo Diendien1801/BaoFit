@@ -27,12 +27,17 @@ import com.visionfit.core.mvi.CollectEffects
 import com.visionfit.domain.model.ActivityLevel
 import com.visionfit.domain.model.BodyProfile
 import com.visionfit.domain.model.FitnessGoal
+import com.visionfit.domain.model.ProfileStatus
 import com.visionfit.domain.model.Sex
 import com.visionfit.domain.usecase.CalculateNutritionTargetUseCase
+import com.visionfit.presentation.common.LocalAppMessenger
 import com.visionfit.presentation.common.containerViewModel
 import com.visionfit.presentation.designsystem.components.StepIndicator
 import com.visionfit.presentation.designsystem.components.VfBackButton
+import com.visionfit.presentation.designsystem.components.VfErrorState
+import com.visionfit.presentation.designsystem.components.VfFullScreenLoading
 import com.visionfit.presentation.designsystem.components.VfPrimaryButton
+import com.visionfit.presentation.designsystem.components.VfTextButton
 import com.visionfit.presentation.designsystem.components.VfTopBar
 import com.visionfit.presentation.designsystem.components.popIn
 import com.visionfit.presentation.designsystem.components.topBorder
@@ -56,15 +61,19 @@ fun OnboardingRoute(
     isEditing: Boolean,
     onNavigateToGoal: () -> Unit,
     onNavigateBack: () -> Unit,
+    onNavigateToAuth: () -> Unit,
     viewModel: OnboardingViewModel = containerViewModel {
-        OnboardingViewModel(profileRepository, calculateNutritionTarget, isEditing)
+        OnboardingViewModel(profileRepository, authRepository, calculateNutritionTarget, isEditing)
     },
 ) {
     val state = viewModel.state.collectAsStateWithLifecycle().value
+    val messenger = LocalAppMessenger.current
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
             OnboardingEffect.NavigateToGoal -> onNavigateToGoal()
             OnboardingEffect.NavigateBack -> onNavigateBack()
+            OnboardingEffect.SaveFailed -> messenger.show("Chưa lưu được hồ sơ, kiểm tra mạng rồi thử lại nhé.")
+            OnboardingEffect.NavigateToAuth -> onNavigateToAuth()
         }
     }
     OnboardingScreen(state = state, onEvent = viewModel::onEvent)
@@ -83,25 +92,43 @@ fun OnboardingScreen(state: OnboardingUiState, onEvent: (OnboardingEvent) -> Uni
             navigation = { VfBackButton(onClick = { onEvent(OnboardingEvent.Back) }) },
             title = { StepIndicator(current = 1, total = 2) },
         )
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .windowInsetsPadding(WindowInsets.safeHorizontal)
-                .maxContentWidth(FormMaxWidth)
-                .padding(horizontal = gutter, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Text(
-                text = if (state.isEditing) "Cập nhật chỉ số của bạn nhé!" else "Kể mình nghe về bạn nào!",
-                style = VisionFitTheme.type.headlineL,
-                modifier = Modifier.semantics { heading() },
+        when {
+            state.loadStatus == ProfileStatus.FAILED -> VfErrorState(
+                message = "Chưa tải được hồ sơ của bạn. Kiểm tra mạng rồi thử lại nhé.",
+                onRetry = { onEvent(OnboardingEvent.RetryLoadClicked) },
+                modifier = Modifier.weight(1f),
             )
-            BodyMetricsGrid(state, onEvent)
-            Section("Mức độ vận động") { ActivityGrid(state.profile.activityLevel, onEvent) }
-            Section("Mục tiêu") { GoalRow(state.profile.goal, onEvent) }
+            !state.isFormVisible -> VfFullScreenLoading(Modifier.weight(1f))
+            else -> {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .windowInsetsPadding(WindowInsets.safeHorizontal)
+                        .maxContentWidth(FormMaxWidth)
+                        .padding(horizontal = gutter, vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Text(
+                        text = if (state.isEditing) "Cập nhật chỉ số của bạn nhé!" else "Kể mình nghe về bạn nào!",
+                        style = VisionFitTheme.type.headlineL,
+                        modifier = Modifier.semantics { heading() },
+                    )
+                    BodyMetricsGrid(state, onEvent)
+                    Section("Mức độ vận động") { ActivityGrid(state.profile.activityLevel, onEvent) }
+                    Section("Mục tiêu") { GoalRow(state.profile.goal, onEvent) }
+                    if (state.isEditing) {
+                        VfTextButton(
+                            text = "Đăng xuất",
+                            onClick = { onEvent(OnboardingEvent.LogoutClicked) },
+                            color = VisionFitTheme.colors.textSecondary,
+                            modifier = Modifier.align(Alignment.CenterHorizontally),
+                        )
+                    }
+                }
+                OnboardingFooter(state, onEvent)
+            }
         }
-        OnboardingFooter(state, onEvent)
     }
 }
 

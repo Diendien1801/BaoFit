@@ -44,3 +44,17 @@ data class BodyProfile(
         )
     }
 }
+
+/** Whether the signed-in user's profile is known on this device. */
+enum class ProfileStatus {
+    /** Signed out, or the download has not answered yet. */
+    LOADING,
+
+    /** Signed in, but onboarding was never finished. */
+    MISSING,
+
+    READY,
+
+    /** The download failed. The profile on screen would be the default, not the user's own. */
+    FAILED,
+}

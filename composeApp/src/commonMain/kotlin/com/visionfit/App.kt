@@ -15,7 +15,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.visionfit.data.remote.defaultApiBaseUrl
+import com.visionfit.data.remote.defaultApiUrls
 import com.visionfit.di.AppContainer
 import com.visionfit.di.LocalAppContainer
 import com.visionfit.presentation.common.AppMessenger
@@ -60,8 +60,8 @@ fun VisionFitApp(container: AppContainer = AppGraph.container) {
  * Process-wide dependency graph. It outlives configuration changes (ViewModels that survive a
  * rotation keep talking to the same repositories) and is created on first use.
  *
- * Signs in against the real backend; pass `apiBaseUrl = null` to go back to the demo account.
+ * Talks to the real backend; pass `api = null` to go back to the demo account and mock profile.
  */
 object AppGraph {
-    val container: AppContainer by lazy { AppContainer(apiBaseUrl = defaultApiBaseUrl) }
+    val container: AppContainer by lazy { AppContainer(api = defaultApiUrls) }
 }

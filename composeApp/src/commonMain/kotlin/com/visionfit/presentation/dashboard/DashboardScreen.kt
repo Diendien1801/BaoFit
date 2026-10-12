@@ -32,6 +32,7 @@ import com.visionfit.presentation.dashboard.components.SectionHeaderLink
 import com.visionfit.presentation.dashboard.components.WeekStrip
 import com.visionfit.presentation.designsystem.components.MainTab
 import com.visionfit.presentation.designsystem.components.MainTabScaffold
+import com.visionfit.presentation.designsystem.components.VfErrorState
 import com.visionfit.presentation.designsystem.components.VfFullScreenLoading
 import com.visionfit.presentation.designsystem.components.popIn
 import com.visionfit.presentation.designsystem.layout.LocalWindowLayout
@@ -88,6 +89,11 @@ fun DashboardScreen(state: DashboardUiState, onEvent: (DashboardEvent) -> Unit, 
     ) { contentPadding ->
         val summary = state.summary
         when {
+            state.isProfileFailed -> VfErrorState(
+                message = "Chưa tải được hồ sơ của bạn nên chưa tính được mục tiêu hôm nay.",
+                onRetry = { onEvent(DashboardEvent.RetryProfileClicked) },
+                modifier = Modifier.padding(contentPadding),
+            )
             state.isLoading || summary == null -> VfFullScreenLoading()
             LocalWindowLayout.current.usesTwoPanes -> DashboardTwoPanes(state, summary, contentPadding, onEvent)
             else -> DashboardSingleColumn(state, summary, contentPadding, onEvent)

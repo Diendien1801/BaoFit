@@ -7,6 +7,7 @@ import com.visionfit.domain.model.DayLog
 import com.visionfit.domain.model.FoodItem
 import com.visionfit.domain.model.MealPhoto
 import com.visionfit.domain.model.MealType
+import com.visionfit.domain.model.ProfileStatus
 import com.visionfit.domain.model.UserSession
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,9 +28,16 @@ interface AuthRepository {
 }
 
 interface ProfileRepository {
+    /** The user's profile when [status] is [ProfileStatus.READY]; [BodyProfile.Default] otherwise. */
     val profile: StateFlow<BodyProfile>
 
-    suspend fun saveProfile(profile: BodyProfile)
+    val status: StateFlow<ProfileStatus>
+
+    /** Returns `false` when the profile could not be saved; [profile] then keeps its old value. */
+    suspend fun saveProfile(profile: BodyProfile): Boolean
+
+    /** Downloads the signed-in user's profile again, e.g. after [ProfileStatus.FAILED]. */
+    suspend fun refresh()
 }
 
 interface MealRepository {

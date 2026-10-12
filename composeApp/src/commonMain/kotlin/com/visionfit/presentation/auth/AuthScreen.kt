@@ -87,7 +87,7 @@ import com.visionfit.presentation.preview.VisionFitPreview
 fun AuthRoute(
     onNavigateToDashboard: () -> Unit,
     onNavigateToOnboarding: () -> Unit,
-    viewModel: AuthViewModel = containerViewModel { AuthViewModel(authRepository, validateCredentials) },
+    viewModel: AuthViewModel = containerViewModel { AuthViewModel(authRepository, profileRepository, validateCredentials) },
 ) {
     val state = viewModel.state.collectAsStateWithLifecycle().value
     val messenger = LocalAppMessenger.current
