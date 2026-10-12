@@ -101,6 +101,7 @@
 | 7 | Design system components (BrutalSurface, VfPrimaryButton, icon, thứ tự Modifier) | Chưa |
 | 8 | Hoàn thiện App shell (AppMessenger/Snackbar, WindowLayout responsive, insets, VisionFitPreview) | Chưa |
 | 9 | Test (FlowTests cho ViewModel, UI test, screenshot test) | Chưa |
+| 10b | **`profile-service`** (service riêng, DB riêng, JWT HS256 dùng chung) + `RemoteProfileRepository` | **Code đã có** (2026-10-12, Claude triển khai theo yêu cầu user, chưa commit). Kế hoạch, kết quả và bài học nằm ở `docs/profile-service-plan.md`. Dạy bằng cách review |
 | 10 | Thay Mock bằng backend thật (Ktor, RemoteAuthRepository) | **Code đã có** (commit `607f553`). Khi tới bước này, hãy dạy bằng cách đọc và review code có sẵn, không viết lại |
 
 ---
