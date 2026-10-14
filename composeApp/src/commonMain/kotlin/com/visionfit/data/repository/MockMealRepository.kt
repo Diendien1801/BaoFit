@@ -3,6 +3,7 @@ package com.visionfit.data.repository
 import com.visionfit.data.mock.InMemoryVisionFitStore
 import com.visionfit.domain.model.ConfirmedMeal
 import com.visionfit.domain.model.DayLog
+import com.visionfit.domain.model.DiaryStatus
 import com.visionfit.domain.model.FoodItem
 import com.visionfit.domain.model.MealEntry
 import com.visionfit.domain.model.MealPhoto
@@ -12,6 +13,8 @@ import com.visionfit.domain.model.mealTitleFor
 import com.visionfit.domain.repository.MealRepository
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
@@ -26,6 +29,11 @@ internal class MockMealRepository(
 ) : MealRepository {
 
     private var nextMealNumber = 1
+
+    /** The store holds every day already, so the diary is ready from the start. */
+    override val status: StateFlow<DiaryStatus> = MutableStateFlow(DiaryStatus.READY)
+
+    override suspend fun refresh() = Unit
 
     override fun observeDay(date: LocalDate): Flow<DayLog> =
         store.meals
@@ -65,6 +73,30 @@ internal class MockMealRepository(
             meals.filterNot { it is PendingMeal && it.jobId == jobId } + meal
         }
         return meal.id
+    }
+
+    override fun observeMeal(id: String): Flow<ConfirmedMeal?> =
+        store.meals
+            .map { meals -> meals.firstOrNull { it is ConfirmedMeal && it.id == id } as ConfirmedMeal? }
+            .distinctUntilChanged()
+
+    override suspend fun updateMeal(id: String, type: MealType, items: List<FoodItem>) {
+        require(items.isNotEmpty()) { "A meal needs at least one dish" }
+        delay(latencyMillis)
+        store.meals.update { meals ->
+            meals.map { meal ->
+                if (meal is ConfirmedMeal && meal.id == id) {
+                    meal.copy(type = type, title = mealTitleFor(items), items = items, isEdited = true)
+                } else {
+                    meal
+                }
+            }
+        }
+    }
+
+    override suspend fun deleteMeal(id: String) {
+        delay(latencyMillis)
+        store.meals.update { meals -> meals.filterNot { it is ConfirmedMeal && it.id == id } }
     }
 
     /** Newest first, like the diary timeline. */

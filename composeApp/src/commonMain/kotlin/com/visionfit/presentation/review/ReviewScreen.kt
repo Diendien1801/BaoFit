@@ -21,13 +21,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -38,7 +42,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.visionfit.core.format.VnFormat
 import com.visionfit.core.mvi.CollectEffects
+import com.visionfit.domain.model.MealType
 import com.visionfit.presentation.common.LocalAppMessenger
+import com.visionfit.presentation.common.colors
 import com.visionfit.presentation.common.containerViewModel
 import com.visionfit.presentation.common.label
 import com.visionfit.presentation.designsystem.components.BrutalSurface
@@ -46,6 +52,7 @@ import com.visionfit.presentation.designsystem.components.VfCloseButton
 import com.visionfit.presentation.designsystem.components.VfErrorState
 import com.visionfit.presentation.designsystem.components.VfFullScreenLoading
 import com.visionfit.presentation.designsystem.components.VfPrimaryButton
+import com.visionfit.presentation.designsystem.components.VfTextButton
 import com.visionfit.presentation.designsystem.components.VfTopBar
 import com.visionfit.presentation.designsystem.components.topBorder
 import com.visionfit.presentation.designsystem.icons.VfIcon
@@ -67,6 +74,7 @@ import com.visionfit.presentation.review.components.FoodItemEditor
 import com.visionfit.presentation.review.components.ImpactBanner
 import com.visionfit.presentation.review.components.ReviewSummaryCard
 
+/** Review of a finished analysis, before the meal enters the diary. */
 @Composable
 fun ReviewRoute(
     jobId: String,
@@ -75,8 +83,7 @@ fun ReviewRoute(
     onNavigateToCamera: () -> Unit,
     viewModel: ReviewViewModel = containerViewModel(key = "review-$jobId-$manualEntry") {
         ReviewViewModel(
-            jobId = jobId,
-            isManualEntry = manualEntry,
+            source = ReviewSource.Analysis(jobId, manualEntry),
             analysisRepository = mealAnalysisRepository,
             mealRepository = mealRepository,
             profileRepository = profileRepository,
@@ -85,16 +92,48 @@ fun ReviewRoute(
         )
     },
 ) {
+    ReviewEffectsAndScreen(viewModel, onLeave = onNavigateToDashboard, onNavigateToCamera = onNavigateToCamera)
+}
+
+/** Detail of a meal already in the diary: change it or delete it, then go back where the user came from. */
+@Composable
+fun MealDetailRoute(
+    mealId: String,
+    onNavigateBack: () -> Unit,
+    viewModel: ReviewViewModel = containerViewModel(key = "meal-detail-$mealId") {
+        ReviewViewModel(
+            source = ReviewSource.SavedMeal(mealId),
+            analysisRepository = mealAnalysisRepository,
+            mealRepository = mealRepository,
+            profileRepository = profileRepository,
+            calculateTarget = calculateNutritionTarget,
+            summarizeDay = summarizeDay,
+        )
+    },
+) {
+    ReviewEffectsAndScreen(viewModel, onLeave = onNavigateBack, onNavigateToCamera = onNavigateBack)
+}
+
+@Composable
+private fun ReviewEffectsAndScreen(viewModel: ReviewViewModel, onLeave: () -> Unit, onNavigateToCamera: () -> Unit) {
     val state = viewModel.state.collectAsStateWithLifecycle().value
     val messenger = LocalAppMessenger.current
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
             is ReviewEffect.MealSaved -> {
                 messenger.show("Đã lưu ${effect.mealType.label.lowercase()} · ${VnFormat.thousands(effect.totalKcal)} kcal")
-                onNavigateToDashboard()
+                onLeave()
+            }
+            is ReviewEffect.MealUpdated -> {
+                messenger.show("Đã cập nhật ${effect.mealType.label.lowercase()} · ${VnFormat.thousands(effect.totalKcal)} kcal")
+                onLeave()
+            }
+            ReviewEffect.MealDeleted -> {
+                messenger.show("Đã xóa bữa ăn khỏi nhật ký")
+                onLeave()
             }
             ReviewEffect.NavigateToCamera -> onNavigateToCamera()
-            ReviewEffect.NavigateToDashboard -> onNavigateToDashboard()
+            ReviewEffect.NavigateToDashboard, ReviewEffect.NavigateBack -> onLeave()
             is ReviewEffect.ItemRemoved -> messenger.show(
                 message = "Đã xóa “${effect.name}”",
                 actionLabel = "Hoàn tác",
@@ -102,6 +141,7 @@ fun ReviewRoute(
             )
             is ReviewEffect.ShowIssue -> messenger.show(effect.issue.message(effect.itemNumber))
             ReviewEffect.SaveFailed -> messenger.show("Chưa lưu được bữa ăn. Thử lại nhé!")
+            ReviewEffect.DeleteFailed -> messenger.show("Chưa xóa được bữa ăn. Kiểm tra mạng rồi thử lại nhé!")
         }
     }
     ReviewScreen(state = state, onEvent = viewModel::onEvent)
@@ -117,21 +157,36 @@ fun ReviewScreen(state: ReviewUiState, onEvent: (ReviewEvent) -> Unit, modifier:
     ) {
         VfTopBar(
             navigation = { VfCloseButton(onClick = { onEvent(ReviewEvent.Close) }) },
-            action = { RetakeButton(onClick = { onEvent(ReviewEvent.Retake) }) },
+            action = {
+                when {
+                    !state.isSavedMeal -> RetakeButton(onClick = { onEvent(ReviewEvent.Retake) })
+                    !state.isLoading && !state.isMissing -> DeleteButton(onClick = { onEvent(ReviewEvent.DeleteClicked) })
+                }
+            },
             title = {
                 Text(
-                    text = "Kiểm tra kết quả",
+                    text = if (state.isSavedMeal) "Chi tiết bữa ăn" else "Kiểm tra kết quả",
                     style = VisionFitTheme.type.sectionTitleSmall,
                     maxLines = 2,
                     modifier = Modifier.semantics { heading() },
                 )
             },
         )
+        if (state.isConfirmingDelete) {
+            DeleteMealDialog(
+                onConfirm = { onEvent(ReviewEvent.DeleteConfirmed) },
+                onDismiss = { onEvent(ReviewEvent.DeleteDismissed) },
+            )
+        }
         when {
             state.isLoading -> VfFullScreenLoading(Modifier.weight(1f))
             state.isMissing -> VfErrorState(
                 title = "Không tìm thấy bữa ăn này",
-                message = "Có thể ảnh đã bị xóa. Quay về trang chính để xem nhật ký nhé.",
+                message = if (state.isSavedMeal) {
+                    "Có thể bữa ăn đã bị xóa. Quay lại nhật ký để xem nhé."
+                } else {
+                    "Có thể ảnh đã bị xóa. Quay về trang chính để xem nhật ký nhé."
+                },
                 onRetry = { onEvent(ReviewEvent.Close) },
                 modifier = Modifier.weight(1f),
             )
@@ -158,6 +213,9 @@ private fun ReviewSingleColumn(state: ReviewUiState, onEvent: (ReviewEvent) -> U
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item(key = "summary") { ReviewSummaryCard(state) }
+            if (state.isSavedMeal) {
+                item(key = "meal-type") { MealTypePicker(state.mealType, onSelected = { onEvent(ReviewEvent.MealTypeSelected(it)) }) }
+            }
             item(key = "impact") { ImpactBanner(state.remainingBeforeKcal, state.remainingAfterKcal) }
             item(key = "hint") { EditHint() }
             foodItems(state, onEvent)
@@ -184,6 +242,9 @@ private fun ReviewTwoPanes(state: ReviewUiState, onEvent: (ReviewEvent) -> Unit,
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             ReviewSummaryCard(state)
+            if (state.isSavedMeal) {
+                MealTypePicker(state.mealType, onSelected = { onEvent(ReviewEvent.MealTypeSelected(it)) })
+            }
             ImpactBanner(state.remainingBeforeKcal, state.remainingAfterKcal)
             EditHint()
         }
@@ -241,6 +302,73 @@ private fun RetakeButton(onClick: () -> Unit) {
 }
 
 @Composable
+private fun DeleteButton(onClick: () -> Unit) {
+    val colors = VisionFitTheme.colors
+    BrutalSurface(
+        modifier = Modifier.height(VfDimens.TopBarButton),
+        shape = RoundedCornerShape(VfRadius.L),
+        color = colors.coralContainer,
+        shadowOffset = VfDimens.ShadowS,
+        onClick = onClick,
+        onClickLabel = "Xóa bữa ăn",
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            VfIcon(VfIcons.Trash, contentDescription = null, size = 16.dp, tint = colors.ink)
+            Text(text = "Xóa", style = VisionFitTheme.type.labelM)
+        }
+    }
+}
+
+/** Breakfast, lunch, snack or dinner: a saved meal can be moved to another one. */
+@Composable
+private fun MealTypePicker(selected: MealType, onSelected: (MealType) -> Unit) {
+    val colors = VisionFitTheme.colors
+    Row(
+        modifier = Modifier.fillMaxWidth().selectableGroup(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        MealType.entries.forEach { type ->
+            val isSelected = type == selected
+            BrutalSurface(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(40.dp)
+                    .semantics { this.selected = isSelected },
+                shape = RoundedCornerShape(VfRadius.L),
+                color = if (isSelected) type.colors().badge else colors.surface,
+                shadowOffset = if (isSelected) VfDimens.ShadowS else 0.dp,
+                onClick = { onSelected(type) },
+                role = Role.RadioButton,
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = type.label.removePrefix("Bữa "),
+                    style = VisionFitTheme.type.labelM,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeleteMealDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Xóa bữa ăn này?", style = VisionFitTheme.type.sectionTitleSmall) },
+        text = { Text("Bữa ăn sẽ biến mất khỏi nhật ký và không còn tính vào tổng calo.", style = VisionFitTheme.type.body) },
+        confirmButton = { VfTextButton(text = "Xóa", onClick = onConfirm, color = VisionFitTheme.colors.coral) },
+        dismissButton = { VfTextButton(text = "Hủy", onClick = onDismiss, color = VisionFitTheme.colors.textSecondary) },
+        containerColor = VisionFitTheme.colors.surface,
+    )
+}
+
+@Composable
 private fun ReviewBottomBar(state: ReviewUiState, onEvent: (ReviewEvent) -> Unit) {
     val colors = VisionFitTheme.colors
     val layout = LocalWindowLayout.current
@@ -276,7 +404,7 @@ private fun ReviewBottomBar(state: ReviewUiState, onEvent: (ReviewEvent) -> Unit
                 )
             }
             VfPrimaryButton(
-                text = "Xác nhận & lưu",
+                text = if (state.isSavedMeal) "Lưu thay đổi" else "Xác nhận & lưu",
                 onClick = { onEvent(ReviewEvent.Save) },
                 // The check icon is the first thing to go when a small phone runs out of room.
                 leadingIcon = if (layout.isNarrow) null else VfIcons.Check,

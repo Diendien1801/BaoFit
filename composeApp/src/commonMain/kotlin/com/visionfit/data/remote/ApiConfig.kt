@@ -7,11 +7,13 @@ package com.visionfit.data.remote
 data class ApiUrls(
     val identity: String,
     val profile: String,
+    val meal: String,
 )
 
 internal val defaultApiUrls = ApiUrls(
     identity = "$devMachineUrl:8081/",
     profile = "$devMachineUrl:8082/",
+    meal = "$devMachineUrl:8083/",
 )
 
 /**

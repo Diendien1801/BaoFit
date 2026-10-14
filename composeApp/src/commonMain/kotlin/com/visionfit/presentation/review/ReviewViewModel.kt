@@ -3,6 +3,7 @@ package com.visionfit.presentation.review
 import androidx.lifecycle.viewModelScope
 import com.visionfit.core.mvi.MviViewModel
 import com.visionfit.domain.model.AnalysisJob
+import com.visionfit.domain.model.ConfirmedMeal
 import com.visionfit.domain.model.NutrientsPer100g
 import com.visionfit.domain.repository.MealAnalysisRepository
 import com.visionfit.domain.repository.MealRepository
@@ -16,41 +17,70 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.datetime.LocalDate
 
+/**
+ * Edits the dishes of a finished analysis before it enters the diary, or of a meal already in it
+ * ([ReviewSource.SavedMeal]: the type can change too, and the meal can be deleted).
+ */
 class ReviewViewModel(
-    private val jobId: String,
-    private val isManualEntry: Boolean,
+    private val source: ReviewSource,
     private val analysisRepository: MealAnalysisRepository,
     private val mealRepository: MealRepository,
-    profileRepository: ProfileRepository,
-    calculateTarget: CalculateNutritionTargetUseCase,
-    summarizeDay: SummarizeDayUseCase,
-) : MviViewModel<ReviewUiState, ReviewEvent, ReviewEffect>(ReviewUiState(jobId = jobId, isManualEntry = isManualEntry)) {
+    private val profileRepository: ProfileRepository,
+    private val calculateTarget: CalculateNutritionTargetUseCase,
+    private val summarizeDay: SummarizeDayUseCase,
+) : MviViewModel<ReviewUiState, ReviewEvent, ReviewEffect>(initialState(source)) {
 
-    /** What the AI proposed, to tell whether the user edited anything. */
+    /** What the AI proposed (or what was saved), to tell whether the user edited anything. */
     private var original: List<EditableFood> = emptyList()
     private var lastRemoved: Pair<Int, EditableFood>? = null
     private var nextColorIndex = 0
     private var nextNewItemNumber = 1
 
+    /** Prefix of the ids given to dishes the user adds, unique within the list. */
+    private val newItemIdPrefix = when (source) {
+        is ReviewSource.Analysis -> source.jobId
+        is ReviewSource.SavedMeal -> source.mealId
+    }
+
     init {
         viewModelScope.launch {
-            val job = analysisRepository.observeJob(jobId).first()
-            if (job == null) {
-                updateState { copy(isLoading = false, isMissing = true) }
-                return@launch
+            when (source) {
+                is ReviewSource.Analysis -> {
+                    val job = analysisRepository.observeJob(source.jobId).first()
+                    if (job == null) {
+                        updateState { copy(isLoading = false, isMissing = true) }
+                        return@launch
+                    }
+                    loadJob(job, source.isManualEntry)
+                    followRemainingKcal(job.capturedAt.date, excludedMealId = null)
+                }
+                is ReviewSource.SavedMeal -> {
+                    val meal = mealRepository.observeMeal(source.mealId).first()
+                    if (meal == null) {
+                        updateState { copy(isLoading = false, isMissing = true) }
+                        return@launch
+                    }
+                    loadMeal(meal)
+                    // The day already counts this meal: "before" means without it.
+                    followRemainingKcal(meal.loggedAt.date, excludedMealId = meal.id)
+                }
             }
-            loadJob(job)
-            val target = profileRepository.profile.map(calculateTarget::invoke)
-            combine(mealRepository.observeDay(job.capturedAt.date), target) { day, dailyTarget ->
-                summarizeDay(day, dailyTarget).remainingKcal
-            }
-                .onEach { remaining -> updateState { copy(remainingBeforeKcal = remaining) } }
-                .launchIn(viewModelScope)
         }
     }
 
-    private fun loadJob(job: AnalysisJob) {
+    private fun followRemainingKcal(date: LocalDate, excludedMealId: String?) {
+        val target = profileRepository.profile.map(calculateTarget::invoke)
+        combine(mealRepository.observeDay(date), target) { day, dailyTarget ->
+            val others = if (excludedMealId == null) day else day.copy(meals = day.meals.filterNot { it.id == excludedMealId })
+            summarizeDay(others, dailyTarget).remainingKcal
+        }
+            .onEach { remaining -> updateState { copy(remainingBeforeKcal = remaining) } }
+            .launchIn(viewModelScope)
+    }
+
+    private fun loadJob(job: AnalysisJob, isManualEntry: Boolean) {
         val items = if (isManualEntry) {
             emptyList()
         } else {
@@ -70,6 +100,23 @@ class ReviewViewModel(
         }
     }
 
+    private fun loadMeal(meal: ConfirmedMeal) {
+        val items = meal.items.mapIndexed { index, item -> EditableFood.from(item, colorIndex = index, region = null) }
+        original = items
+        nextColorIndex = items.size
+        updateState {
+            copy(
+                isLoading = false,
+                isManualEntry = items.all { it.isManual },
+                mealType = meal.type,
+                loggedAt = meal.loggedAt,
+                photo = meal.photo,
+                detectedCount = items.count { !it.isManual },
+                items = items,
+            )
+        }
+    }
+
     override fun onEvent(event: ReviewEvent) {
         when (event) {
             is ReviewEvent.NameChanged -> editItem(event.id) { copy(name = event.value.take(MAX_NAME_LENGTH)) }
@@ -80,7 +127,11 @@ class ReviewViewModel(
             ReviewEvent.AddItem -> addItem()
             ReviewEvent.Save -> save()
             ReviewEvent.Retake -> sendEffect(ReviewEffect.NavigateToCamera)
-            ReviewEvent.Close -> sendEffect(ReviewEffect.NavigateToDashboard)
+            ReviewEvent.Close -> sendEffect(if (currentState.isSavedMeal) ReviewEffect.NavigateBack else ReviewEffect.NavigateToDashboard)
+            is ReviewEvent.MealTypeSelected -> updateState { copy(mealType = event.type) }
+            ReviewEvent.DeleteClicked -> if (!currentState.isDeleting) updateState { copy(isConfirmingDelete = true) }
+            ReviewEvent.DeleteDismissed -> updateState { copy(isConfirmingDelete = false) }
+            ReviewEvent.DeleteConfirmed -> delete()
         }
     }
 
@@ -128,7 +179,7 @@ class ReviewViewModel(
 
     private fun addItem() {
         val item = EditableFood(
-            id = "$jobId-manual-${nextNewItemNumber++}",
+            id = "$newItemIdPrefix-manual-${nextNewItemNumber++}",
             colorIndex = nextColorIndex++,
             name = "",
             gramsText = DEFAULT_NEW_ITEM_GRAMS.toString(),
@@ -142,7 +193,7 @@ class ReviewViewModel(
 
     private fun save() {
         val state = currentState
-        if (state.isSaving) return
+        if (state.isSaving || state.isDeleting) return
         val issue = validate(state)
         if (issue != null) {
             val (kind, invalid) = issue
@@ -152,24 +203,51 @@ class ReviewViewModel(
             return
         }
         val loggedAt = state.loggedAt ?: return
+        val items = state.items.map { it.toFoodItem() }
         updateState { copy(isSaving = true) }
         viewModelScope.launch {
             try {
-                mealRepository.saveMeal(
-                    jobId = jobId,
-                    type = state.mealType,
-                    loggedAt = loggedAt,
-                    photo = state.photo,
-                    items = state.items.map { it.toFoodItem() },
-                    isEdited = isEdited(state.items),
-                )
-                sendEffect(ReviewEffect.MealSaved(state.mealType, state.totalKcal))
+                when (source) {
+                    is ReviewSource.Analysis -> {
+                        mealRepository.saveMeal(
+                            jobId = source.jobId,
+                            type = state.mealType,
+                            loggedAt = loggedAt,
+                            photo = state.photo,
+                            items = items,
+                            isEdited = isEdited(state.items),
+                        )
+                        sendEffect(ReviewEffect.MealSaved(state.mealType, state.totalKcal))
+                    }
+                    is ReviewSource.SavedMeal -> {
+                        mealRepository.updateMeal(source.mealId, state.mealType, items)
+                        sendEffect(ReviewEffect.MealUpdated(state.mealType, state.totalKcal))
+                    }
+                }
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (error: Exception) {
                 sendEffect(ReviewEffect.SaveFailed)
             } finally {
                 updateState { copy(isSaving = false) }
+            }
+        }
+    }
+
+    private fun delete() {
+        val mealId = (source as? ReviewSource.SavedMeal)?.mealId ?: return
+        if (currentState.isDeleting) return
+        updateState { copy(isConfirmingDelete = false, isDeleting = true) }
+        viewModelScope.launch {
+            try {
+                mealRepository.deleteMeal(mealId)
+                sendEffect(ReviewEffect.MealDeleted)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                sendEffect(ReviewEffect.DeleteFailed)
+            } finally {
+                updateState { copy(isDeleting = false) }
             }
         }
     }
@@ -211,5 +289,10 @@ class ReviewViewModel(
         const val MAX_GRAM_DIGITS = 4
         const val MAX_KCAL_CHARS = 6
         const val DEFAULT_NEW_ITEM_GRAMS = 100
+
+        fun initialState(source: ReviewSource) = when (source) {
+            is ReviewSource.Analysis -> ReviewUiState(jobId = source.jobId, isManualEntry = source.isManualEntry)
+            is ReviewSource.SavedMeal -> ReviewUiState(savedMealId = source.mealId)
+        }
     }
 }

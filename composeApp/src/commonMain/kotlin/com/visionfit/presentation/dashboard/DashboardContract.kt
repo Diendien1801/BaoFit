@@ -21,6 +21,8 @@ data class DashboardUiState(
     val isLoading: Boolean = true,
     /** The profile could not be downloaded, so today's targets would be someone else's. */
     val isProfileFailed: Boolean = false,
+    /** The meal diary could not be downloaded, so "eaten today" would read as zero. */
+    val isDiaryFailed: Boolean = false,
     val userName: String = "",
     val initials: String = "",
     val today: LocalDate? = null,
@@ -43,6 +45,7 @@ sealed interface DashboardEvent {
     data object CaptureClicked : DashboardEvent
     data class TabSelected(val tab: MainTab) : DashboardEvent
     data object RetryProfileClicked : DashboardEvent
+    data object RetryDiaryClicked : DashboardEvent
 }
 
 sealed interface DashboardEffect {
@@ -52,6 +55,7 @@ sealed interface DashboardEffect {
     data object NavigateToProfile : DashboardEffect
     data class NavigateToAnalysis(val jobId: String) : DashboardEffect
     data class NavigateToReview(val jobId: String) : DashboardEffect
+    data class NavigateToMealDetail(val mealId: String) : DashboardEffect
 }
 
 internal fun PendingMeal.destination(): DashboardEffect = when (status) {

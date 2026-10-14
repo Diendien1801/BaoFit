@@ -56,6 +56,13 @@ data class EditableFood(
     }
 }
 
+/** What the screen edits: the dishes of a finished analysis, or a meal already in the diary. */
+sealed interface ReviewSource {
+    data class Analysis(val jobId: String, val isManualEntry: Boolean = false) : ReviewSource
+
+    data class SavedMeal(val mealId: String) : ReviewSource
+}
+
 enum class ReviewIssue {
     /** Nothing to save. */
     NO_ITEMS,
@@ -79,12 +86,17 @@ data class ReviewUiState(
     /** Items highlighted after a failed save attempt. */
     val invalidItemIds: Set<String> = emptySet(),
     val isSaving: Boolean = false,
+    /** Set when editing a meal already in the diary instead of a fresh analysis. */
+    val savedMealId: String? = null,
+    val isConfirmingDelete: Boolean = false,
+    val isDeleting: Boolean = false,
 ) {
+    val isSavedMeal: Boolean get() = savedMealId != null
     val totalKcal: Int get() = items.sumOf { it.kcal }
     val totalMacros: Macros get() = items.fold(Macros.Zero) { total, item -> total + item.macros }
     val remainingAfterKcal: Int get() = remainingBeforeKcal - totalKcal
     val isOverTarget: Boolean get() = remainingAfterKcal < 0
-    val canSave: Boolean get() = !isSaving && items.isNotEmpty()
+    val canSave: Boolean get() = !isSaving && !isDeleting && items.isNotEmpty()
 }
 
 sealed interface ReviewEvent {
@@ -97,6 +109,12 @@ sealed interface ReviewEvent {
     data object Save : ReviewEvent
     data object Retake : ReviewEvent
     data object Close : ReviewEvent
+
+    // A saved meal only.
+    data class MealTypeSelected(val type: MealType) : ReviewEvent
+    data object DeleteClicked : ReviewEvent
+    data object DeleteConfirmed : ReviewEvent
+    data object DeleteDismissed : ReviewEvent
 }
 
 sealed interface ReviewEffect {
@@ -106,4 +124,10 @@ sealed interface ReviewEffect {
     data class ItemRemoved(val name: String) : ReviewEffect
     data class ShowIssue(val issue: ReviewIssue, val itemNumber: Int?) : ReviewEffect
     data object SaveFailed : ReviewEffect
+
+    // A saved meal only.
+    data class MealUpdated(val mealType: MealType, val totalKcal: Int) : ReviewEffect
+    data object MealDeleted : ReviewEffect
+    data object DeleteFailed : ReviewEffect
+    data object NavigateBack : ReviewEffect
 }

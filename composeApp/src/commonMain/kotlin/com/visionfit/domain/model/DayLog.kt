@@ -11,6 +11,16 @@ data class DayLog(
     val pendingMeals: List<PendingMeal> get() = meals.filterIsInstance<PendingMeal>()
 }
 
+/** Whether the meal diary on screen is the server's. */
+enum class DiaryStatus {
+    /** Signed out, or the diary of the requested days has not answered yet. */
+    LOADING,
+    READY,
+
+    /** The last download failed. Days that never loaded are missing, not empty. */
+    FAILED,
+}
+
 data class MacroProgress(
     val eatenG: Double,
     val targetG: Int,

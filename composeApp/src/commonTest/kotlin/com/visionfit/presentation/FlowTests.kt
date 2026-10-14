@@ -25,6 +25,7 @@ import com.visionfit.presentation.history.HistoryViewModel
 import com.visionfit.presentation.review.ReviewEffect
 import com.visionfit.presentation.review.ReviewEvent
 import com.visionfit.presentation.review.ReviewIssue
+import com.visionfit.presentation.review.ReviewSource
 import com.visionfit.presentation.review.ReviewViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -242,9 +243,47 @@ class FlowTests {
         }
     }
 
-    private fun reviewViewModel(app: AppContainer, jobId: String, manual: Boolean = false) = ReviewViewModel(
-        jobId = jobId,
-        isManualEntry = manual,
+    @Test
+    fun aSavedMealCanBeChangedThenDeleted() = runTest(dispatcher) {
+        val app = app()
+        val lunchId = "meal-lunch-$today"
+        val detail = reviewViewModel(app, ReviewSource.SavedMeal(lunchId))
+        val effects = collect(detail.effects)
+        settle()
+        with(detail.state.value) {
+            assertTrue(isSavedMeal)
+            assertEquals(MealType.LUNCH, mealType)
+            assertEquals(listOf("Cơm tấm", "Sườn nướng", "Đồ chua & mỡ hành"), items.map { it.name })
+            assertEquals(822, totalKcal)
+            assertEquals(371 + 822, remainingBeforeKcal, "the day without this meal")
+        }
+
+        detail.onEvent(ReviewEvent.MealTypeSelected(MealType.DINNER))
+        detail.onEvent(ReviewEvent.RemoveItem("$today-l3"))
+        detail.onEvent(ReviewEvent.Save)
+        settle()
+
+        assertEquals(ReviewEffect.MealUpdated(MealType.DINNER, 692), effects.last())
+        val updated = app.mealRepository.observeMeal(lunchId).first()
+        assertEquals(MealType.DINNER, updated?.type)
+        assertEquals(2, updated?.items?.size)
+        assertEquals(true, updated?.isEdited)
+
+        detail.onEvent(ReviewEvent.DeleteClicked)
+        assertTrue(detail.state.value.isConfirmingDelete)
+        detail.onEvent(ReviewEvent.DeleteConfirmed)
+        settle()
+
+        assertEquals(ReviewEffect.MealDeleted, effects.last())
+        assertEquals(null, app.mealRepository.observeMeal(lunchId).first())
+        assertTrue(reviewViewModel(app, ReviewSource.SavedMeal(lunchId)).also { settle() }.state.value.isMissing)
+    }
+
+    private fun reviewViewModel(app: AppContainer, jobId: String, manual: Boolean = false) =
+        reviewViewModel(app, ReviewSource.Analysis(jobId, manual))
+
+    private fun reviewViewModel(app: AppContainer, source: ReviewSource) = ReviewViewModel(
+        source = source,
         analysisRepository = app.mealAnalysisRepository,
         mealRepository = app.mealRepository,
         profileRepository = app.profileRepository,

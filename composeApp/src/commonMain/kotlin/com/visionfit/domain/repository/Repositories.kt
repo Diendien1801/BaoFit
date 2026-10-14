@@ -3,7 +3,9 @@ package com.visionfit.domain.repository
 import com.visionfit.domain.model.AnalysisJob
 import com.visionfit.domain.model.AuthResult
 import com.visionfit.domain.model.BodyProfile
+import com.visionfit.domain.model.ConfirmedMeal
 import com.visionfit.domain.model.DayLog
+import com.visionfit.domain.model.DiaryStatus
 import com.visionfit.domain.model.FoodItem
 import com.visionfit.domain.model.MealPhoto
 import com.visionfit.domain.model.MealType
@@ -41,6 +43,9 @@ interface ProfileRepository {
 }
 
 interface MealRepository {
+    /** Outcome of the latest diary download. [observeDay] and [observeRange] only emit loaded days. */
+    val status: StateFlow<DiaryStatus>
+
     fun observeDay(date: LocalDate): Flow<DayLog>
 
     /** Day logs for every date from [from] to [to] (inclusive), oldest first. */
@@ -60,6 +65,18 @@ interface MealRepository {
         items: List<FoodItem>,
         isEdited: Boolean,
     ): String
+
+    /** A saved meal of the days already loaded; `null` once it is deleted or when this device does not know it. */
+    fun observeMeal(id: String): Flow<ConfirmedMeal?>
+
+    /** Replaces the type and the dishes of a saved meal. Throws when the server refuses or cannot be reached. */
+    suspend fun updateMeal(id: String, type: MealType, items: List<FoodItem>)
+
+    /** Throws when the server cannot be reached. A meal that is already gone counts as deleted. */
+    suspend fun deleteMeal(id: String)
+
+    /** Downloads every day a screen is showing again, e.g. after [DiaryStatus.FAILED]. */
+    suspend fun refresh()
 }
 
 interface MealAnalysisRepository {

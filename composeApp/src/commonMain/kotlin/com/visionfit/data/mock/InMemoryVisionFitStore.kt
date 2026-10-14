@@ -37,8 +37,11 @@ internal data class MockAccount(
  *
  * Seeded relative to "today" so the demo always looks like the design: 1.663 kcal eaten,
  * a dinner tray being analyzed and a 6-day streak with two days over target.
+ *
+ * @param withDemoData `false` when the diary comes from meal-service: the store then only holds
+ *   the photos the user analyzes, not the demo meals and jobs.
  */
-internal class InMemoryVisionFitStore(timeProvider: TimeProvider) {
+internal class InMemoryVisionFitStore(timeProvider: TimeProvider, withDemoData: Boolean = true) {
 
     val accounts = MutableStateFlow(
         listOf(
@@ -59,9 +62,10 @@ internal class InMemoryVisionFitStore(timeProvider: TimeProvider) {
     init {
         val today = timeProvider.today()
         val seed = Seed(today)
-        meals = MutableStateFlow(seed.meals())
-        jobs = MutableStateFlow(seed.jobs().associateBy { it.id })
-        aiResults.value = seed.jobs().associate { it.id to MockAiCatalog.resultFor(it.photo, it.id) }
+        val seedJobs = if (withDemoData) seed.jobs() else emptyList()
+        meals = MutableStateFlow(if (withDemoData) seed.meals() else emptyList())
+        jobs = MutableStateFlow(seedJobs.associateBy { it.id })
+        aiResults.value = seedJobs.associate { it.id to MockAiCatalog.resultFor(it.photo, it.id) }
     }
 
     companion object {

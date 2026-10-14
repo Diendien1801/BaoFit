@@ -50,6 +50,7 @@ import com.visionfit.presentation.preview.VisionFitPreview
 fun HistoryRoute(
     onNavigateToAnalysis: (jobId: String) -> Unit,
     onNavigateToReview: (jobId: String) -> Unit,
+    onNavigateToMealDetail: (mealId: String) -> Unit,
     onNavigateToCamera: () -> Unit,
     onNavigateToDashboard: () -> Unit,
     onNavigateToGoal: () -> Unit,
@@ -63,6 +64,7 @@ fun HistoryRoute(
         when (effect) {
             is HistoryEffect.NavigateToAnalysis -> onNavigateToAnalysis(effect.jobId)
             is HistoryEffect.NavigateToReview -> onNavigateToReview(effect.jobId)
+            is HistoryEffect.NavigateToMealDetail -> onNavigateToMealDetail(effect.mealId)
             HistoryEffect.NavigateToCamera -> onNavigateToCamera()
             HistoryEffect.NavigateToDashboard -> onNavigateToDashboard()
             HistoryEffect.NavigateToGoal -> onNavigateToGoal()
@@ -199,6 +201,17 @@ private fun LazyListScope.timelineItems(
     withCacheNote: Boolean,
 ) {
     when {
+        state.isLoadFailed -> item(key = "failed-${state.selectedDate}") {
+            VfMessageCard(
+                title = "Ối, chưa tải được",
+                message = "Chưa tải được nhật ký ngày ${state.selectedDate?.let(VnFormat::shortDate).orEmpty()}. Kiểm tra mạng rồi thử lại nhé.",
+                icon = VfIcons.Alert,
+                iconContainer = VisionFitTheme.colors.coralContainer,
+                actionLabel = "Thử lại",
+                onAction = { onEvent(HistoryEvent.RetryClicked) },
+                modifier = gutters.modifier.padding(top = 8.dp),
+            )
+        }
         state.isLoading || state.summary == null -> item(key = "loading") {
             Box(Modifier.fillMaxWidth().padding(top = 48.dp), contentAlignment = Alignment.Center) { VfLoadingIndicator() }
         }

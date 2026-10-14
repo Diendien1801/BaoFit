@@ -16,8 +16,13 @@ data class HistoryUiState(
     val meals: List<MealEntry> = emptyList(),
     val isOffline: Boolean = false,
     val isDatePickerVisible: Boolean = false,
+    /** The last diary download failed. Matters only while the selected day has not loaded. */
+    val isDiaryFailed: Boolean = false,
 ) {
     val isToday: Boolean get() = selectedDate != null && selectedDate == today
+
+    /** The selected day could not be loaded: show a retry instead of an endless spinner. */
+    val isLoadFailed: Boolean get() = isLoading && isDiaryFailed
 }
 
 sealed interface HistoryEvent {
@@ -28,11 +33,13 @@ sealed interface HistoryEvent {
     data class MealClicked(val meal: MealEntry) : HistoryEvent
     data object CaptureClicked : HistoryEvent
     data class TabSelected(val tab: MainTab) : HistoryEvent
+    data object RetryClicked : HistoryEvent
 }
 
 sealed interface HistoryEffect {
     data class NavigateToAnalysis(val jobId: String) : HistoryEffect
     data class NavigateToReview(val jobId: String) : HistoryEffect
+    data class NavigateToMealDetail(val mealId: String) : HistoryEffect
     data object NavigateToCamera : HistoryEffect
     data object NavigateToDashboard : HistoryEffect
     data object NavigateToGoal : HistoryEffect

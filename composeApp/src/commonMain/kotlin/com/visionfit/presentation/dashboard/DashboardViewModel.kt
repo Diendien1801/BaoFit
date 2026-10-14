@@ -5,6 +5,7 @@ import com.visionfit.core.mvi.MviViewModel
 import com.visionfit.core.time.TimeProvider
 import com.visionfit.domain.model.ConfirmedMeal
 import com.visionfit.domain.model.DayLog
+import com.visionfit.domain.model.DiaryStatus
 import com.visionfit.domain.model.NutritionTarget
 import com.visionfit.domain.model.PendingMeal
 import com.visionfit.domain.model.ProfileStatus
@@ -19,7 +20,9 @@ import com.visionfit.domain.usecase.SummarizeDayUseCase
 import com.visionfit.presentation.designsystem.components.MainTab
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDateTime
@@ -28,7 +31,7 @@ import kotlinx.datetime.minus
 class DashboardViewModel(
     authRepository: AuthRepository,
     private val profileRepository: ProfileRepository,
-    mealRepository: MealRepository,
+    private val mealRepository: MealRepository,
     networkMonitor: NetworkMonitor,
     private val timeProvider: TimeProvider,
     private val calculateTarget: CalculateNutritionTargetUseCase,
@@ -39,7 +42,10 @@ class DashboardViewModel(
     init {
         val now = timeProvider.now()
         val today = now.date
+        // null until the diary has loaded: the repository only emits days it really knows.
         val history = mealRepository.observeRange(from = today.minus(STREAK_LOOKBACK_DAYS, DateTimeUnit.DAY), to = today)
+            .map<List<DayLog>, List<DayLog>?> { it }
+            .onStart { emit(null) }
         val connectivity = combine(networkMonitor.isOnline, networkMonitor.lastSyncedAt) { online, synced -> online to synced }
 
         val profile = combine(profileRepository.status, profileRepository.profile) { status, profile ->
@@ -51,8 +57,9 @@ class DashboardViewModel(
             profile,
             history,
             connectivity,
-        ) { session, (profileStatus, target), days, (online, syncedAt) ->
-            buildState(now, session, profileStatus, target, days, online, syncedAt)
+            mealRepository.status,
+        ) { session, (profileStatus, target), days, (online, syncedAt), diaryStatus ->
+            buildState(now, session, profileStatus, target, days, diaryStatus, online, syncedAt)
         }
             .onEach { state -> updateState { state } }
             .launchIn(viewModelScope)
@@ -66,7 +73,7 @@ class DashboardViewModel(
             DashboardEvent.CaptureClicked -> sendEffect(DashboardEffect.NavigateToCamera)
             is DashboardEvent.MealClicked -> when (val meal = event.meal) {
                 is PendingMeal -> sendEffect(meal.destination())
-                is ConfirmedMeal -> sendEffect(DashboardEffect.NavigateToHistory)
+                is ConfirmedMeal -> sendEffect(DashboardEffect.NavigateToMealDetail(meal.id))
             }
             is DashboardEvent.TabSelected -> when (event.tab) {
                 MainTab.TODAY -> Unit
@@ -83,23 +90,28 @@ class DashboardViewModel(
                 )
             }
             DashboardEvent.RetryProfileClicked -> viewModelScope.launch { profileRepository.refresh() }
+            DashboardEvent.RetryDiaryClicked -> viewModelScope.launch { mealRepository.refresh() }
         }
     }
 
+    /** @param loadedDays `null` until the diary has loaded. */
     private fun buildState(
         now: LocalDateTime,
         session: UserSession?,
         profileStatus: ProfileStatus,
         target: NutritionTarget,
-        days: List<DayLog>,
+        loadedDays: List<DayLog>?,
+        diaryStatus: DiaryStatus,
         isOnline: Boolean,
         lastSyncedAt: LocalDateTime?,
     ): DashboardUiState {
         val today = now.date
+        val days = loadedDays.orEmpty()
         val todayLog = days.lastOrNull { it.date == today } ?: DayLog(today, emptyList())
         return DashboardUiState(
-            isLoading = profileStatus == ProfileStatus.LOADING,
+            isLoading = profileStatus == ProfileStatus.LOADING || (loadedDays == null && diaryStatus != DiaryStatus.FAILED),
             isProfileFailed = profileStatus == ProfileStatus.FAILED,
+            isDiaryFailed = loadedDays == null && diaryStatus == DiaryStatus.FAILED,
             userName = session?.displayName.orEmpty(),
             initials = session?.initials ?: "?",
             today = today,

@@ -3,6 +3,8 @@ package com.visionfit.presentation.history
 import androidx.lifecycle.viewModelScope
 import com.visionfit.core.mvi.MviViewModel
 import com.visionfit.core.time.TimeProvider
+import com.visionfit.domain.model.ConfirmedMeal
+import com.visionfit.domain.model.DiaryStatus
 import com.visionfit.domain.model.PendingMeal
 import com.visionfit.domain.model.PendingStatus
 import com.visionfit.domain.model.ProfileStatus
@@ -19,12 +21,13 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.minus
 
 class HistoryViewModel(
-    mealRepository: MealRepository,
+    private val mealRepository: MealRepository,
     private val profileRepository: ProfileRepository,
     networkMonitor: NetworkMonitor,
     timeProvider: TimeProvider,
@@ -56,6 +59,11 @@ class HistoryViewModel(
                 }
             }
             .launchIn(viewModelScope)
+
+        // The day flow stays silent while its day has not loaded, so a failure is told apart here.
+        mealRepository.status
+            .onEach { status -> updateState { copy(isDiaryFailed = status == DiaryStatus.FAILED) } }
+            .launchIn(viewModelScope)
     }
 
     override fun onEvent(event: HistoryEvent) {
@@ -67,16 +75,18 @@ class HistoryViewModel(
                 updateState { copy(isDatePickerVisible = false) }
                 select(event.date)
             }
-            is HistoryEvent.MealClicked -> (event.meal as? PendingMeal)?.let { meal ->
-                sendEffect(
-                    if (meal.status == PendingStatus.READY_FOR_REVIEW) {
+            is HistoryEvent.MealClicked -> sendEffect(
+                when (val meal = event.meal) {
+                    is ConfirmedMeal -> HistoryEffect.NavigateToMealDetail(meal.id)
+                    is PendingMeal -> if (meal.status == PendingStatus.READY_FOR_REVIEW) {
                         HistoryEffect.NavigateToReview(meal.jobId)
                     } else {
                         HistoryEffect.NavigateToAnalysis(meal.jobId)
-                    },
-                )
-            }
+                    }
+                },
+            )
             HistoryEvent.CaptureClicked -> sendEffect(HistoryEffect.NavigateToCamera)
+            HistoryEvent.RetryClicked -> viewModelScope.launch { mealRepository.refresh() }
             is HistoryEvent.TabSelected -> when (event.tab) {
                 MainTab.TODAY -> sendEffect(HistoryEffect.NavigateToDashboard)
                 MainTab.HISTORY -> select(today)

@@ -15,6 +15,7 @@ import com.visionfit.data.repository.MockMealRepository
 import com.visionfit.data.repository.MockNetworkMonitor
 import com.visionfit.data.repository.MockProfileRepository
 import com.visionfit.data.repository.RemoteAuthRepository
+import com.visionfit.data.repository.RemoteMealRepository
 import com.visionfit.data.repository.RemoteProfileRepository
 import com.visionfit.domain.repository.AuthRepository
 import com.visionfit.domain.repository.CameraSource
@@ -33,22 +34,24 @@ import kotlinx.coroutines.SupervisorJob
 /**
  * Manual dependency graph. Each `Mock*` repository is replaced by a Ktor-backed implementation of
  * the same domain interface once its service exists; nothing above the data layer changes.
- * So far auth (identity-service) and profile (profile-service) talk to the backend.
+ * So far auth (identity-service), profile (profile-service) and the meal diary (meal-service)
+ * talk to the backend; photo analysis is still the mock.
  */
 class AppContainer(
     val timeProvider: TimeProvider = SystemTimeProvider(),
     /** Outlives every screen, so analysis jobs keep running in the background. */
     applicationScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
-    /** Backend services, or `null` to keep auth and profile on the in-memory mocks (tests, previews). */
+    /** Backend services, or `null` to keep auth, profile and meals on the in-memory mocks (tests, previews). */
     api: ApiUrls? = null,
 ) {
-    private val store = InMemoryVisionFitStore(timeProvider)
+    /** With a backend it only carries the mock analysis pipeline, so no demo meals. */
+    private val store = InMemoryVisionFitStore(timeProvider, withDemoData = api == null)
 
     init {
         if (api == null) {
-            AppLog.d("Api", "Using in-memory mocks for auth and profile")
+            AppLog.d("Api", "Using in-memory mocks for auth, profile and meals")
         } else {
-            AppLog.d("Api", "identity-service: ${api.identity} | profile-service: ${api.profile}")
+            AppLog.d("Api", "identity-service: ${api.identity} | profile-service: ${api.profile} | meal-service: ${api.meal}")
         }
     }
 
@@ -63,7 +66,12 @@ class AppContainer(
         } else {
             RemoteProfileRepository(createHttpClient(api.profile), tokenStore, authRepository.session, applicationScope)
         }
-    val mealRepository: MealRepository = MockMealRepository(store)
+    val mealRepository: MealRepository =
+        if (api == null) {
+            MockMealRepository(store)
+        } else {
+            RemoteMealRepository(createHttpClient(api.meal), tokenStore, authRepository.session, store)
+        }
     val mealAnalysisRepository: MealAnalysisRepository = MockMealAnalysisRepository(store, applicationScope)
     val networkMonitor: NetworkMonitor = MockNetworkMonitor(timeProvider)
     val cameraSource: CameraSource = MockCameraSource()

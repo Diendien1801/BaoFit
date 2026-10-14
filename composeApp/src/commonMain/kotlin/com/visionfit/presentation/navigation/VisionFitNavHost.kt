@@ -19,12 +19,14 @@ import com.visionfit.presentation.dashboard.DashboardRoute
 import com.visionfit.presentation.goal.GoalRoute
 import com.visionfit.presentation.history.HistoryRoute
 import com.visionfit.presentation.onboarding.OnboardingRoute
+import com.visionfit.presentation.review.MealDetailRoute
 import com.visionfit.presentation.review.ReviewRoute
 
 /**
  * App flow:
  * Auth → (register) Onboarding → Goal → Dashboard; (login) Dashboard.
  * Dashboard ↔ History via the bottom bar; Camera → Analysis → Review → Dashboard.
+ * A saved meal's card (Dashboard or History) opens its detail, which returns where it came from.
  * Profile tab: Goal (step 2) when a profile is saved, the Onboarding editor otherwise. From Goal,
  * "Chỉnh lại thông tin" opens the editor on top; saving or Back returns to that same Goal.
  */
@@ -80,12 +82,14 @@ fun VisionFitNavHost(
                 onNavigateToProfile = { navController.navigate(OnboardingDestination(isEditing = true)) { launchSingleTop = true } },
                 onNavigateToAnalysis = { jobId -> navController.navigate(AnalysisDestination(jobId)) },
                 onNavigateToReview = { jobId -> navController.navigate(ReviewDestination(jobId)) },
+                onNavigateToMealDetail = { mealId -> navController.navigate(MealDetailDestination(mealId)) },
             )
         }
         composable<HistoryDestination> {
             HistoryRoute(
                 onNavigateToAnalysis = { jobId -> navController.navigate(AnalysisDestination(jobId)) },
                 onNavigateToReview = { jobId -> navController.navigate(ReviewDestination(jobId)) },
+                onNavigateToMealDetail = { mealId -> navController.navigate(MealDetailDestination(mealId)) },
                 onNavigateToCamera = { navController.navigate(CameraDestination) { launchSingleTop = true } },
                 onNavigateToDashboard = { navController.navigateToDashboard() },
                 onNavigateToGoal = { navController.navigate(GoalDestination) { launchSingleTop = true } },
@@ -119,6 +123,12 @@ fun VisionFitNavHost(
                 onNavigateToCamera = {
                     navController.navigate(CameraDestination) { popUpTo<ReviewDestination> { inclusive = true } }
                 },
+            )
+        }
+        composable<MealDetailDestination> { entry ->
+            MealDetailRoute(
+                mealId = entry.toRoute<MealDetailDestination>().mealId,
+                onNavigateBack = { navController.popBackStack() },
             )
         }
     }

@@ -26,3 +26,7 @@ data class AnalysisDestination(val jobId: String)
 
 @Serializable
 data class ReviewDestination(val jobId: String, val manualEntry: Boolean = false)
+
+/** A meal already in the diary, opened from its card to change or delete it. */
+@Serializable
+data class MealDetailDestination(val mealId: String)

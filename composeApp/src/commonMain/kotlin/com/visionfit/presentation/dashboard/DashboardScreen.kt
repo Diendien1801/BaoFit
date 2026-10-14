@@ -52,6 +52,7 @@ fun DashboardRoute(
     onNavigateToProfile: () -> Unit,
     onNavigateToAnalysis: (jobId: String) -> Unit,
     onNavigateToReview: (jobId: String) -> Unit,
+    onNavigateToMealDetail: (mealId: String) -> Unit,
     viewModel: DashboardViewModel = containerViewModel {
         DashboardViewModel(
             authRepository = authRepository,
@@ -74,6 +75,7 @@ fun DashboardRoute(
             DashboardEffect.NavigateToProfile -> onNavigateToProfile()
             is DashboardEffect.NavigateToAnalysis -> onNavigateToAnalysis(effect.jobId)
             is DashboardEffect.NavigateToReview -> onNavigateToReview(effect.jobId)
+            is DashboardEffect.NavigateToMealDetail -> onNavigateToMealDetail(effect.mealId)
         }
     }
     DashboardScreen(state = state, onEvent = viewModel::onEvent)
@@ -92,6 +94,11 @@ fun DashboardScreen(state: DashboardUiState, onEvent: (DashboardEvent) -> Unit, 
             state.isProfileFailed -> VfErrorState(
                 message = "Chưa tải được hồ sơ của bạn nên chưa tính được mục tiêu hôm nay.",
                 onRetry = { onEvent(DashboardEvent.RetryProfileClicked) },
+                modifier = Modifier.padding(contentPadding),
+            )
+            state.isDiaryFailed -> VfErrorState(
+                message = "Chưa tải được nhật ký ăn uống nên chưa biết hôm nay bạn đã ăn bao nhiêu.",
+                onRetry = { onEvent(DashboardEvent.RetryDiaryClicked) },
                 modifier = Modifier.padding(contentPadding),
             )
             state.isLoading || summary == null -> VfFullScreenLoading()
