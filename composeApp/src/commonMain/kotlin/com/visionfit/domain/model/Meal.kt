@@ -72,6 +72,11 @@ sealed interface MealEntry {
     val photo: MealPhoto?
 }
 
+/**
+ * A meal in the diary. [kcal] and [macros] are meal-service's totals; the defaults add up the
+ * dishes only where there is no server (mock, previews). Build a new meal rather than `copy`
+ * one with other dishes, or the totals would stay those of the old dishes.
+ */
 data class ConfirmedMeal(
     override val id: String,
     override val type: MealType,
@@ -80,10 +85,9 @@ data class ConfirmedMeal(
     val title: String,
     val items: List<FoodItem>,
     val isEdited: Boolean,
-) : MealEntry {
-    val kcal: Int get() = items.sumOf { it.kcal }
-    val macros: Macros get() = items.fold(Macros.Zero) { total, item -> total + item.macros }
-}
+    val kcal: Int = items.sumOf { it.kcal },
+    val macros: Macros = items.fold(Macros.Zero) { total, item -> total + item.macros },
+) : MealEntry
 
 data class PendingMeal(
     override val id: String,

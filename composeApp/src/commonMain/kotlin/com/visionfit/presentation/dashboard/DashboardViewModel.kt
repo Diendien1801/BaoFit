@@ -15,7 +15,6 @@ import com.visionfit.domain.repository.MealRepository
 import com.visionfit.domain.repository.NetworkMonitor
 import com.visionfit.domain.repository.ProfileRepository
 import com.visionfit.domain.usecase.CalculateNutritionTargetUseCase
-import com.visionfit.domain.usecase.CalculateStreakUseCase
 import com.visionfit.domain.usecase.SummarizeDayUseCase
 import com.visionfit.presentation.designsystem.components.MainTab
 import kotlinx.coroutines.flow.combine
@@ -36,16 +35,19 @@ class DashboardViewModel(
     private val timeProvider: TimeProvider,
     private val calculateTarget: CalculateNutritionTargetUseCase,
     private val summarizeDay: SummarizeDayUseCase,
-    private val calculateStreak: CalculateStreakUseCase,
 ) : MviViewModel<DashboardUiState, DashboardEvent, DashboardEffect>(DashboardUiState()) {
 
     init {
         val now = timeProvider.now()
         val today = now.date
-        // null until the diary has loaded: the repository only emits days it really knows.
-        val history = mealRepository.observeRange(from = today.minus(STREAK_LOOKBACK_DAYS, DateTimeUnit.DAY), to = today)
+        // null until loaded: the repository only emits what the server really said.
+        val week = mealRepository.observeRange(from = today.minus(WEEK_DAYS - 1, DateTimeUnit.DAY), to = today)
             .map<List<DayLog>, List<DayLog>?> { it }
             .onStart { emit(null) }
+        val streak = mealRepository.observeStreak(today)
+            .map<Int, Int?> { it }
+            .onStart { emit(null) }
+        val history = combine(week, streak) { days, streakDays -> if (days == null || streakDays == null) null else days to streakDays }
         val connectivity = combine(networkMonitor.isOnline, networkMonitor.lastSyncedAt) { online, synced -> online to synced }
 
         val profile = combine(profileRepository.status, profileRepository.profile) { status, profile ->
@@ -58,8 +60,8 @@ class DashboardViewModel(
             history,
             connectivity,
             mealRepository.status,
-        ) { session, (profileStatus, target), days, (online, syncedAt), diaryStatus ->
-            buildState(now, session, profileStatus, target, days, diaryStatus, online, syncedAt)
+        ) { session, (profileStatus, target), diary, (online, syncedAt), diaryStatus ->
+            buildState(now, session, profileStatus, target, diary, diaryStatus, online, syncedAt)
         }
             .onEach { state -> updateState { state } }
             .launchIn(viewModelScope)
@@ -94,34 +96,34 @@ class DashboardViewModel(
         }
     }
 
-    /** @param loadedDays `null` until the diary has loaded. */
+    /** @param diary the week and the streak, `null` until both have loaded. */
     private fun buildState(
         now: LocalDateTime,
         session: UserSession?,
         profileStatus: ProfileStatus,
         target: NutritionTarget,
-        loadedDays: List<DayLog>?,
+        diary: Pair<List<DayLog>, Int>?,
         diaryStatus: DiaryStatus,
         isOnline: Boolean,
         lastSyncedAt: LocalDateTime?,
     ): DashboardUiState {
         val today = now.date
-        val days = loadedDays.orEmpty()
+        val days = diary?.first.orEmpty()
         val todayLog = days.lastOrNull { it.date == today } ?: DayLog(today, emptyList())
         return DashboardUiState(
-            isLoading = profileStatus == ProfileStatus.LOADING || (loadedDays == null && diaryStatus != DiaryStatus.FAILED),
+            isLoading = profileStatus == ProfileStatus.LOADING || (diary == null && diaryStatus != DiaryStatus.FAILED),
             isProfileFailed = profileStatus == ProfileStatus.FAILED,
-            isDiaryFailed = loadedDays == null && diaryStatus == DiaryStatus.FAILED,
+            isDiaryFailed = diary == null && diaryStatus == DiaryStatus.FAILED,
             userName = session?.displayName.orEmpty(),
             initials = session?.initials ?: "?",
             today = today,
             greeting = greetingFor(now.hour),
             isOffline = !isOnline,
             lastSyncedAt = lastSyncedAt?.time,
-            week = days.takeLast(WEEK_DAYS).map { day ->
+            week = days.map { day ->
                 WeekDay(date = day.date, status = summarizeDay.status(day, target), isToday = day.date == today)
             },
-            streakDays = calculateStreak(days, today),
+            streakDays = diary?.second ?: 0,
             summary = summarizeDay(todayLog, target),
             meals = todayLog.meals,
             notificationCount = todayLog.pendingMeals.size,
@@ -137,6 +139,5 @@ class DashboardViewModel(
 
     private companion object {
         const val WEEK_DAYS = 7
-        const val STREAK_LOOKBACK_DAYS = 60
     }
 }

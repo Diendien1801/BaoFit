@@ -62,7 +62,6 @@ fun DashboardRoute(
             timeProvider = timeProvider,
             calculateTarget = calculateNutritionTarget,
             summarizeDay = summarizeDay,
-            calculateStreak = calculateStreak,
         )
     },
 ) {

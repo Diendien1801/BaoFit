@@ -3,9 +3,15 @@ package com.visionfit.domain.model
 import kotlinx.datetime.LocalDate
 import kotlin.math.max
 
+/**
+ * One day of the diary. [eatenKcal] and [eatenMacros] count confirmed meals only and come from
+ * meal-service; the defaults add them up only where there is no server (mock, previews).
+ */
 data class DayLog(
     val date: LocalDate,
     val meals: List<MealEntry>,
+    val eatenKcal: Int = meals.filterIsInstance<ConfirmedMeal>().sumOf { it.kcal },
+    val eatenMacros: Macros = meals.filterIsInstance<ConfirmedMeal>().fold(Macros.Zero) { total, meal -> total + meal.macros },
 ) {
     val confirmedMeals: List<ConfirmedMeal> get() = meals.filterIsInstance<ConfirmedMeal>()
     val pendingMeals: List<PendingMeal> get() = meals.filterIsInstance<PendingMeal>()

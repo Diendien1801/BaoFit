@@ -11,6 +11,7 @@ import com.visionfit.domain.model.MealType
 import com.visionfit.domain.model.PendingMeal
 import com.visionfit.domain.model.mealTitleFor
 import com.visionfit.domain.repository.MealRepository
+import com.visionfit.domain.usecase.CalculateStreakUseCase
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +29,7 @@ internal class MockMealRepository(
     private val latencyMillis: Long = 600,
 ) : MealRepository {
 
-    private var nextMealNumber = 1
+    private val calculateStreak = CalculateStreakUseCase()
 
     /** The store holds every day already, so the diary is ready from the start. */
     override val status: StateFlow<DiaryStatus> = MutableStateFlow(DiaryStatus.READY)
@@ -50,7 +51,17 @@ internal class MockMealRepository(
             }
             .distinctUntilChanged()
 
+    /** What meal-service computes, done here on the demo data. */
+    override fun observeStreak(today: LocalDate): Flow<Int> =
+        store.meals
+            .map { meals ->
+                val days = meals.filterIsInstance<ConfirmedMeal>().groupBy { it.loggedAt.date }.map { (date, dayMeals) -> DayLog(date, dayMeals) }
+                calculateStreak(days, today)
+            }
+            .distinctUntilChanged()
+
     override suspend fun saveMeal(
+        id: String,
         jobId: String?,
         type: MealType,
         loggedAt: LocalDateTime,
@@ -60,8 +71,10 @@ internal class MockMealRepository(
     ): String {
         require(items.isNotEmpty()) { "A meal needs at least one dish" }
         delay(latencyMillis)
+        // Same rule as meal-service: a retry with the same id keeps the first meal.
+        if (store.meals.value.any { it is ConfirmedMeal && it.id == id }) return id
         val meal = ConfirmedMeal(
-            id = "meal-saved-${nextMealNumber++}",
+            id = id,
             type = type,
             loggedAt = loggedAt,
             photo = photo,
@@ -86,7 +99,8 @@ internal class MockMealRepository(
         store.meals.update { meals ->
             meals.map { meal ->
                 if (meal is ConfirmedMeal && meal.id == id) {
-                    meal.copy(type = type, title = mealTitleFor(items), items = items, isEdited = true)
+                    // A new meal, not `copy`: the totals must follow the new dishes.
+                    ConfirmedMeal(meal.id, type, meal.loggedAt, meal.photo, mealTitleFor(items), items, isEdited = true)
                 } else {
                     meal
                 }

@@ -2,10 +2,12 @@ package com.visionfit.data.remote.dto
 
 import com.visionfit.domain.model.ConfirmedMeal
 import com.visionfit.domain.model.FoodItem
+import com.visionfit.domain.model.Macros
 import com.visionfit.domain.model.MealPhoto
 import com.visionfit.domain.model.MealType
 import com.visionfit.domain.model.NutrientsPer100g
 import com.visionfit.domain.model.mealTitleFor
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.Serializable
 
@@ -22,6 +24,8 @@ internal data class Per100gDto(
 /** `POST /api/v1/meals`. No default values: every field is always sent, `null` included. */
 @Serializable
 internal data class SaveMealRequest(
+    /** Made by the app; the same on every retry, so the server keeps one meal. */
+    val id: String,
     val jobId: String?,
     val type: MealType,
     val loggedAt: LocalDateTime,
@@ -45,7 +49,7 @@ internal data class SaveMealItem(
     val confidence: Int?,
 )
 
-/** A saved meal as `GET` and `POST` return it. */
+/** A saved meal as the server returns it, totals included: the app shows them, it does not add up. */
 @Serializable
 internal data class MealDto(
     val id: String,
@@ -54,8 +58,28 @@ internal data class MealDto(
     val loggedAt: LocalDateTime,
     val photoUrl: String? = null,
     val isEdited: Boolean,
+    val kcal: Int,
+    val proteinG: Double,
+    val carbsG: Double,
+    val fatG: Double,
     val items: List<MealItemDto>,
 )
+
+/** One day of `GET /api/v1/meals`: the server's totals of the day and its meals, newest first. */
+@Serializable
+internal data class DayDto(
+    val date: LocalDate,
+    val kcal: Int,
+    val proteinG: Double,
+    val carbsG: Double,
+    val fatG: Double,
+    val mealCount: Int,
+    val meals: List<MealDto>,
+)
+
+/** `GET /api/v1/meals/streak`. */
+@Serializable
+internal data class StreakDto(val days: Int)
 
 @Serializable
 internal data class MealItemDto(
@@ -92,5 +116,9 @@ internal fun MealDto.toDomain(): ConfirmedMeal {
         title = mealTitleFor(foods),
         items = foods,
         isEdited = isEdited,
+        kcal = kcal,
+        macros = Macros(proteinG, carbsG, fatG),
     )
 }
+
+internal val DayDto.eatenMacros: Macros get() = Macros(proteinG, carbsG, fatG)

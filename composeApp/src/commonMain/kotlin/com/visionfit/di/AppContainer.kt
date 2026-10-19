@@ -24,7 +24,6 @@ import com.visionfit.domain.repository.MealRepository
 import com.visionfit.domain.repository.NetworkMonitor
 import com.visionfit.domain.repository.ProfileRepository
 import com.visionfit.domain.usecase.CalculateNutritionTargetUseCase
-import com.visionfit.domain.usecase.CalculateStreakUseCase
 import com.visionfit.domain.usecase.SummarizeDayUseCase
 import com.visionfit.domain.usecase.ValidateCredentialsUseCase
 import kotlinx.coroutines.CoroutineScope
@@ -78,7 +77,6 @@ class AppContainer(
 
     val calculateNutritionTarget = CalculateNutritionTargetUseCase()
     val summarizeDay = SummarizeDayUseCase()
-    val calculateStreak = CalculateStreakUseCase()
     val validateCredentials = ValidateCredentialsUseCase()
 }
 

@@ -51,13 +51,19 @@ interface MealRepository {
     /** Day logs for every date from [from] to [to] (inclusive), oldest first. */
     fun observeRange(from: LocalDate, to: LocalDate): Flow<List<DayLog>>
 
+    /** Days in a row with at least one confirmed meal, counted back from the day before [today]. */
+    fun observeStreak(today: LocalDate): Flow<Int>
+
     /**
      * Saves the reviewed dishes as a confirmed meal. When the meal came from an analysis job,
      * pass its [jobId] so the pending diary entry is replaced instead of duplicated.
      *
-     * @return the id of the saved meal.
+     * @param id made once per meal by the caller and passed again on every retry: saving the same
+     *   [id] twice keeps one meal.
+     * @return the id of the saved meal: [id], or the meal first saved for this [jobId].
      */
     suspend fun saveMeal(
+        id: String,
         jobId: String?,
         type: MealType,
         loggedAt: LocalDateTime,

@@ -101,7 +101,7 @@ class ProfileGateTests {
         val app = app()
         val dashboard = DashboardViewModel(
             app.authRepository, profiles, app.mealRepository, app.networkMonitor, app.timeProvider,
-            app.calculateNutritionTarget, app.summarizeDay, app.calculateStreak,
+            app.calculateNutritionTarget, app.summarizeDay,
         )
         settle()
         assertTrue(dashboard.state.value.isLoading)

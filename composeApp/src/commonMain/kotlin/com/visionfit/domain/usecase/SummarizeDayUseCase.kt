@@ -4,24 +4,25 @@ import com.visionfit.domain.model.DayLog
 import com.visionfit.domain.model.DayStatus
 import com.visionfit.domain.model.DaySummary
 import com.visionfit.domain.model.MacroProgress
-import com.visionfit.domain.model.Macros
 import com.visionfit.domain.model.NutritionTarget
 
-/** Totals only confirmed meals: dishes still being analyzed have no trusted numbers yet. */
+/**
+ * Sets what the day's diary says was eaten (meal-service's totals, confirmed meals only) against
+ * the user's target. The target still comes from the profile on this device.
+ */
 class SummarizeDayUseCase {
 
     operator fun invoke(day: DayLog, target: NutritionTarget): DaySummary {
-        val confirmed = day.confirmedMeals
-        val eatenMacros = confirmed.fold(Macros.Zero) { total, meal -> total + meal.macros }
+        val eatenMacros = day.eatenMacros
         return DaySummary(
             date = day.date,
             targetKcal = target.dailyKcal,
-            eatenKcal = confirmed.sumOf { it.kcal },
+            eatenKcal = day.eatenKcal,
             eatenMacros = eatenMacros,
             protein = MacroProgress(eatenMacros.proteinG, target.macros.proteinG),
             carbs = MacroProgress(eatenMacros.carbsG, target.macros.carbsG),
             fat = MacroProgress(eatenMacros.fatG, target.macros.fatG),
-            confirmedMealCount = confirmed.size,
+            confirmedMealCount = day.confirmedMeals.size,
             pendingMealCount = day.pendingMeals.size,
         )
     }

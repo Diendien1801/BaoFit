@@ -115,6 +115,11 @@ class FlowTests {
         assertEquals(1_164, dinner.kcal)
         assertTrue(dinner.isEdited)
         assertEquals("Thịt kho, Đậu phụ sốt cà chua & 2 món khác", dinner.title)
+
+        // Tapping "Lưu" again (say the first answer never arrived) sends the same meal id: still one dinner.
+        review.onEvent(ReviewEvent.Save)
+        settle()
+        assertEquals(day.confirmedMeals.size, app.mealRepository.observeDay(today).first().confirmedMeals.size)
     }
 
     @Test
@@ -193,7 +198,7 @@ class FlowTests {
         app.authRepository.login(InMemoryVisionFitStore.DEMO_EMAIL, InMemoryVisionFitStore.DEMO_PASSWORD)
         val dashboard = DashboardViewModel(
             app.authRepository, app.profileRepository, app.mealRepository, app.networkMonitor, app.timeProvider,
-            app.calculateNutritionTarget, app.summarizeDay, app.calculateStreak,
+            app.calculateNutritionTarget, app.summarizeDay,
         )
         settle()
         with(dashboard.state.value) {

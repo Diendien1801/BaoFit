@@ -18,6 +18,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 /**
  * Edits the dishes of a finished analysis before it enters the diary, or of a meal already in it
@@ -37,6 +39,14 @@ class ReviewViewModel(
     private var lastRemoved: Pair<Int, EditableFood>? = null
     private var nextColorIndex = 0
     private var nextNewItemNumber = 1
+
+    /**
+     * The id of the meal this review saves, made once when the screen opens: every tap on "Lưu"
+     * (a retry after a timeout, a double tap) sends the same id, so the server keeps one meal.
+     * Making it inside save() would give each tap a new id and defeat that.
+     */
+    @OptIn(ExperimentalUuidApi::class)
+    private val newMealId: String = Uuid.random().toString()
 
     /** Prefix of the ids given to dishes the user adds, unique within the list. */
     private val newItemIdPrefix = when (source) {
@@ -70,11 +80,15 @@ class ReviewViewModel(
         }
     }
 
+    /**
+     * Calories left before this meal. The day's total is meal-service's; for a saved meal it already
+     * counts that meal, so the meal's own total (also the server's) is given back.
+     */
     private fun followRemainingKcal(date: LocalDate, excludedMealId: String?) {
         val target = profileRepository.profile.map(calculateTarget::invoke)
         combine(mealRepository.observeDay(date), target) { day, dailyTarget ->
-            val others = if (excludedMealId == null) day else day.copy(meals = day.meals.filterNot { it.id == excludedMealId })
-            summarizeDay(others, dailyTarget).remainingKcal
+            val alreadyCounted = day.confirmedMeals.firstOrNull { it.id == excludedMealId }?.kcal ?: 0
+            summarizeDay(day, dailyTarget).remainingKcal + alreadyCounted
         }
             .onEach { remaining -> updateState { copy(remainingBeforeKcal = remaining) } }
             .launchIn(viewModelScope)
@@ -210,6 +224,7 @@ class ReviewViewModel(
                 when (source) {
                     is ReviewSource.Analysis -> {
                         mealRepository.saveMeal(
+                            id = newMealId,
                             jobId = source.jobId,
                             type = state.mealType,
                             loggedAt = loggedAt,
